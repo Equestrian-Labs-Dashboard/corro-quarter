@@ -462,13 +462,20 @@ def main():
 
     # ── 1. SUMMARY ────────────────────────────────────────────────
     h = ["updated_at","quarter","metric",mnames[0],mnames[1],mnames[2],"Q Total"]
+    # Monthly GP approximated proportionally from ShopifyQL total
+    # (ShopifyQL doesn't break GP by month directly)
+    monthly_gp_approx = {}
+    for m in months:
+        m_ns = monthly_ns[m] or 0
+        monthly_gp_approx[m] = round(total_gp * (m_ns / total_ns), 2) if total_ns else 0
+
     rows_s = [
         [now,label,"Gross Sales",  round(monthly_gs[months[0]],2),round(monthly_gs[months[1]],2),round(monthly_gs[months[2]],2),round(total_gs,2)],
         [now,label,"Discounts",    "","","",round(total_disc,2)],
         [now,label,"Returns",      "","","",round(total_ret,2)],
         [now,label,"Net Sales",    round(monthly_ns[months[0]],2),round(monthly_ns[months[1]],2),round(monthly_ns[months[2]],2),round(total_ns,2)],
         [now,label,"COGS",         "","","",round(total_cogs,2)],
-        [now,label,"Gross Profit", "","","",round(total_gp,2)],
+        [now,label,"Gross Profit", round(monthly_gp_approx[months[0]],2),round(monthly_gp_approx[months[1]],2),round(monthly_gp_approx[months[2]],2),round(total_gp,2)],
         [now,label,"Gross Margin", "","","",f"{gp_margin}%"],
         [now,label,"Units Sold",   monthly_u[months[0]],monthly_u[months[1]],monthly_u[months[2]],total_units],
         [now,label,"Orders",       "","","",total_ords],
@@ -479,7 +486,7 @@ def main():
     def prod_row(i, p, rank_by="gross_profit"):
         ns  = p["net_sales"] or 0
         gp  = p["gross_profit"] or 0
-        margin = round(gp/ns*100,3) if ns else 0
+        margin = round(gp/ns,4) if ns else 0  # decimal e.g. 0.19 = 19%
         total_sales = round(p["gross_sales"],2)
         return [
             now, label, i+1,
@@ -488,7 +495,7 @@ def main():
             round(p["gross_sales"],2), round(p["discounts"],2),
             round(p["returns"],2),     round(ns,2),
             round(p["cogs"],2),        round(gp,2),
-            round(margin,3), total_sales, len(p["orders"]),
+            round(margin,4), total_sales, len(p["orders"]),
             round(p["monthly"][months[0]]["net_sales"],2),
             round(p["monthly"][months[1]]["net_sales"],2),
             round(p["monthly"][months[2]]["net_sales"],2),
@@ -507,7 +514,7 @@ def main():
     def sku_row(i, r):
         ns  = r["net_sales"] or 0
         gp  = r["gross_profit"] or 0
-        margin = round(gp/ns*100,3) if ns else 0
+        margin = round(gp/ns,4) if ns else 0  # decimal
         return [
             now, label, i+1,
             r["product_title"], r["sku"], r.get("vendor",""), r.get("product_type",""),
@@ -527,12 +534,12 @@ def main():
              f"{mnames[0]} net_sales",f"{mnames[1]} net_sales",f"{mnames[2]} net_sales"]
 
     # ── 2. TOP 100 BY SKU ─────────────────────────────────────────
-    sorted_skus = sorted(sku_agg.values(), key=lambda x: x["gross_sales"], reverse=True)
+    sorted_skus = sorted(sku_agg.values(), key=lambda x: x["gross_profit"], reverse=True)
     write_tab(sh, f"q_top_sku_{sfx}", h_sku,
               [sku_row(i,r) for i,r in enumerate(sorted_skus[:100])])
 
     # ── 3. TOP 100 ALL PRODUCTS ───────────────────────────────────
-    sorted_prods = sorted(prod_agg.values(), key=lambda x: x["gross_sales"], reverse=True)
+    sorted_prods = sorted(prod_agg.values(), key=lambda x: x["gross_profit"], reverse=True)
     write_tab(sh, f"q_top_products_{sfx}", h_prod,
               [prod_row(i,p) for i,p in enumerate(sorted_prods[:100])])
 
@@ -615,7 +622,7 @@ def main():
             f"{mnames[2]} units",f"{mnames[2]} sales",f"{mnames[2]} margin",
             "Q total units","Q total sales","Q avg margin"]
     mb_rows = []
-    for i, r in enumerate(sorted(sku_agg.values(), key=lambda x: x["gross_sales"], reverse=True)[:100]):
+    for i, r in enumerate(sorted(sku_agg.values(), key=lambda x: x["gross_profit"], reverse=True)[:100]):
         ns = r["net_sales"] or 0
         gp = r["gross_profit"] or 0
         avg_m = round(gp/ns,3) if ns else 0
