@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Quarterly Report — Corro</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+[data-theme="dark"]{--bg:#09090A;--sf:#111113;--sf2:#18181B;--sf3:#222226;--bd:#2A2A2F;--bd2:#3A3A40;--tx:#F2F1ED;--tx2:#B8B7B0;--tx3:#6B6A65;--A:#34D399;--A-bg:#0A2818;--A-bd:rgba(52,211,153,.2);--B:#FBBF24;--B-bg:#271E06;--B-bd:rgba(251,191,36,.2);--C:#F87171;--C-bg:#270A0A;--C-bd:rgba(248,113,113,.2);--D:#818CF8;--D-bg:#12102A;--D-bd:rgba(129,140,248,.2);--disc:#F87171;}
+[data-theme="light"]{--bg:#F4F3EE;--sf:#FFFFFF;--sf2:#F8F7F3;--sf3:#EEECEA;--bd:#E0DDD6;--bd2:#C8C5BC;--tx:#0C0C0A;--tx2:#52504A;--tx3:#8A8880;--A:#0D7A50;--A-bg:#D1F0E2;--A-bd:rgba(13,122,80,.18);--B:#92640A;--B-bg:#FEF3D0;--B-bd:rgba(146,100,10,.18);--C:#9B2020;--C-bg:#FAE0E0;--C-bd:rgba(155,32,32,.18);--D:#4338CA;--D-bg:#EEF2FF;--D-bd:rgba(67,56,202,.18);--disc:#9B2020;}
+html,body{min-height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px}
+.wrap{max-width:1320px;margin:0 auto;padding:28px 20px 80px}
+.header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:8px}
+.brand-dot{width:9px;height:9px;border-radius:50%;background:var(--A);flex-shrink:0}
+.brand-name{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--tx2)}
+h1{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;letter-spacing:-.05em;line-height:1;margin-top:8px}
+h1 em{color:var(--A);font-style:normal}
+.pb{display:inline-flex;margin-top:8px;font-size:11px;color:var(--tx3);background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:3px 12px}
+.controls{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.sg{display:flex;flex-direction:column;gap:3px}
+.sl-lbl{font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em}
+select.ps{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--tx);background:var(--sf2);border:1px solid var(--bd2);border-radius:7px;padding:6px 28px 6px 10px;cursor:pointer;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;min-width:100px;transition:border-color .15s}
+select.ps:focus{border-color:var(--A)}
+select.ps option{background:var(--sf2);color:var(--tx)}
+.btn{display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:7px;border:1px solid var(--bd2);background:var(--sf2);color:var(--tx2);cursor:pointer;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;transition:all .15s}
+.btn:hover{border-color:var(--A);color:var(--A)}
+.tbtn{width:30px;height:30px;border-radius:50%;border:1px solid var(--bd2);background:var(--sf2);color:var(--tx2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.tab-nav{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:20px;padding:4px;background:var(--sf);border:1px solid var(--bd);border-radius:10px}
+.tbn{font-size:11px;font-weight:600;padding:6px 11px;border-radius:7px;cursor:pointer;border:none;background:transparent;color:var(--tx3);font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.tbn.on{background:var(--A-bg);color:var(--A);border:1px solid var(--A-bd)}
+.tbn:hover:not(.on){background:var(--sf2);color:var(--tx2)}
+.tp{display:none}.tp.on{display:block}
+.sec{display:flex;align-items:center;gap:10px;margin:22px 0 12px}
+.sn{font-family:'Syne',sans-serif;font-size:9px;font-weight:700;color:var(--tx3);letter-spacing:.15em;text-transform:uppercase;white-space:nowrap}
+.sl{flex:1;height:1px;background:var(--bd)}
+.st{font-size:9px;font-weight:600;color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.kg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:8px}
+.kc{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;position:relative;overflow:hidden}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kc,var(--bd))}
+.kl{font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px}
+.kv{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.04em;line-height:1}
+.ks{font-size:10px;color:var(--tx3);margin-top:4px}
+.mg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.mc{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
+.mn{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.mr{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 0;border-bottom:1px solid var(--bd)}
+.mr:last-child{border-bottom:none;padding-top:6px;font-weight:600}
+.mr span:first-child{color:var(--tx3)}
+.mr span:last-child{font-family:'DM Mono',monospace;font-size:11px}
+.tw{background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:10px}
+.th{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bd)}
+.tt{font-size:13px;font-weight:600;color:var(--tx)}
+.tn{font-size:10px;color:var(--tx3)}
+.ts{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--bd);background:var(--sf2);white-space:nowrap}
+thead th.r{text-align:right}
+thead th.gp{color:var(--A);border-left:2px solid var(--A-bd)}
+thead th.dc{color:var(--disc);border-left:2px solid rgba(248,113,113,.3)}
+tbody tr{border-bottom:1px solid var(--bd);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--sf2)}
+td{padding:7px 10px;color:var(--tx2);vertical-align:middle;white-space:nowrap}
+td.r{text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--tx)}
+td.nm{color:var(--tx);font-weight:500;max-width:200px;white-space:normal}
+td.nm small{display:block;font-size:10px;color:var(--tx3);font-weight:400;margin-top:1px}
+td.gps{border-left:2px solid rgba(52,211,153,.15)}
+td.dcs{border-left:2px solid rgba(248,113,113,.15)}
+.bdg{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600}
+.dy{background:var(--D-bg);color:var(--D);border:1px solid var(--D-bd)}
+.dn{background:var(--sf3);color:var(--tx3);border:1px solid var(--bd)}
+.bm{display:flex;align-items:center;gap:5px}
+.bb{width:56px;height:3px;background:var(--sf3);border-radius:2px;overflow:hidden;flex-shrink:0}
+.bf{height:100%;border-radius:2px}
+.bp{font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3);min-width:36px;text-align:right}
+.zg{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:10px;margin-bottom:12px}
+.zc{background:var(--sf);border:1px solid var(--bd);border-top:2px solid var(--C);border-radius:12px;padding:14px 16px}
+.zcat{font-size:10px;font-weight:700;color:var(--C);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.zv{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.03em}
+.zs{font-size:10px;color:var(--tx3);margin-top:3px}
+.zcg{font-size:11px;font-weight:600;margin-top:5px;color:var(--B)}
+.zm{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.zmi{font-size:9px;color:var(--tx3);background:var(--sf2);border:1px solid var(--bd);border-radius:4px;padding:2px 6px}
+.cb{display:inline-flex;font-family:'DM Mono',monospace;font-size:10px;padding:1px 6px;border-radius:3px;font-weight:500;background:rgba(248,113,113,.1);color:var(--disc);border:1px solid rgba(248,113,113,.2)}
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:10px;backdrop-filter:blur(4px)}
+.ov.show{display:flex}
+.spi{width:28px;height:28px;border:2px solid var(--bd2);border-top-color:var(--A);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.ovt{font-size:12px;color:var(--tx);background:var(--sf);padding:8px 18px;border-radius:20px;border:1px solid var(--bd2)}
+.empty{padding:32px;text-align:center;font-size:12px;color:var(--tx3)}
+@media(max-width:700px){.mg{grid-template-columns:1fr}.kg{grid-template-columns:repeat(2,1fr)}.tbn{font-size:10px;padding:5px 8px}}
+</style>
+</head>
+<body>
+<div class="ov" id="ov"><div class="spi"></div><div class="ovt" id="ovt">Loading...</div></div>
+<div class="wrap">
+<div class="header">
+  <div>
+    <div class="brand"><div class="brand-dot"></div><div class="brand-name">Equestrian Labs — Corro</div></div>
+    <h1>Quarterly <em>Report</em></h1>
+    <div class="pb" id="pb">—</div>
+  </div>
+  <div class="controls">
+    <div class="sg"><div class="sl-lbl">Year</div>
+      <select class="ps" id="sy" onchange="render()">
+        <option value="2026" selected>2026</option>
+        <option value="2025">2025</option>
+        <option value="2024">2024</option>
+      </select>
+    </div>
+    <div class="sg"><div class="sl-lbl">Quarter</div>
+      <select class="ps" id="sq" onchange="render()">
+        <option value="q1" selected>Q1 — Jan–Mar</option>
+        <option value="q2">Q2 — Apr–Jun</option>
+        <option value="q3">Q3 — Jul–Sep</option>
+        <option value="q4">Q4 — Oct–Dec</option>
+      </select>
+    </div>
+    <button class="btn" onclick="forceRefresh()"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M10 6a4 4 0 1 1-.8-2.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 2v2.5H7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Refresh</button>
+    <button class="tbtn" onclick="toggleTheme()">☀</button>
+  </div>
+</div>
+
+<div class="tab-nav">
+  <button class="tbn on"  onclick="st('summary')">📊 Summary</button>
+  <button class="tbn"     onclick="st('products')">🏆 Top Products</button>
+  <button class="tbn"     onclick="st('sku')">📦 By SKU</button>
+  <button class="tbn"     onclick="st('dropship')">🚚 Dropship</button>
+  <button class="tbn"     onclick="st('margin')">💎 Best Margin</button>
+  <button class="tbn"     onclick="st('gp')">💰 Top GP</button>
+  <button class="tbn"     onclick="st('monthly')">📅 Monthly</button>
+  <button class="tbn"     onclick="st('vendors')">🏪 Vendors</button>
+  <button class="tbn"     onclick="st('costzero')">⚠️ Cost Zero</button>
+  <button class="tbn"     onclick="st('disczero')">🎁 Discount Zero</button>
+  <button class="tbn"     onclick="st('nosales')">💤 No Activity</button>
+</div>
+
+<!-- SUMMARY -->
+<div class="tp on" id="tp-summary">
+  <div class="kg">
+    <div class="kc" style="--kc:var(--A)"><div class="kl">Gross Sales</div><div class="kv" id="k-gs">—</div><div class="ks">Before discounts</div></div>
+    <div class="kc" style="--kc:var(--disc)"><div class="kl">Discounts</div><div class="kv" id="k-disc">—</div><div class="ks" id="k-disc-s">—</div></div>
+    <div class="kc" style="--kc:var(--B)"><div class="kl">Returns</div><div class="kv" id="k-ret">—</div><div class="ks">Refunded</div></div>
+    <div class="kc" style="--kc:var(--A)"><div class="kl">Net Sales</div><div class="kv" id="k-ns">—</div><div class="ks">After discounts &amp; returns</div></div>
+    <div class="kc" style="--kc:var(--A)"><div class="kl">Gross Profit</div><div class="kv" id="k-gp">—</div><div class="ks" id="k-gp-s">—</div></div>
+    <div class="kc" style="--kc:var(--tx3)"><div class="kl">Units Sold</div><div class="kv" id="k-units">—</div></div>
+    <div class="kc" style="--kc:var(--tx3)"><div class="kl">Orders</div><div class="kv" id="k-orders">—</div></div>
+    <div class="kc" style="--kc:var(--tx3)"><div class="kl">Updated</div><div class="kv" style="font-size:13px;margin-top:4px" id="k-upd">—</div></div>
+  </div>
+  <div class="sec"><div class="sn">Monthly</div><div class="sl"></div><div class="st">Jan / Feb / Mar</div></div>
+  <div class="mg" id="mg"><div class="empty" style="grid-column:1/-1">Loading...</div></div>
+</div>
+
+<!-- TOP PRODUCTS -->
+<div class="tp" id="tp-products">
+  <div class="tw"><div class="th"><div class="tt">Top 100 Products — All · by Gross Sales</div><div class="tn" id="n-products">—</div></div><div class="ts"><div id="t-products"><div class="empty">Loading...</div></div></div></div>
+</div>
+
+<!-- BY SKU -->
+<div class="tp" id="tp-sku">
+  <div class="tw"><div class="th"><div class="tt">Top 100 by SKU — individual variants</div><div class="tn" id="n-sku">—</div></div><div class="ts"><div id="t-sku"><div class="empty">Loading...</div></div></div></div>
+</div>
+
+<!-- DROPSHIP -->
+<div class="tp" id="tp-dropship">
+  <div class="tw"><div class="th"><div class="tt">Top 100 Dropship Products</div><div class="tn" id="n-dropship">—</div></div><div class="ts"><div id="t-dropship"><div class="empty">Loading...</div></div></div></div>
+</div>
+
+<!-- BEST MARGIN -->
+<div class="tp" id="tp-margin">
+  <div class="tw"><div class="th"><div class="tt">Top 100 by Gross Margin % — min 5 units</div><div class="tn" id="n-margin">—</div></div><div class="ts"><div id="t-margin"><div class="empty">Loading...</div></div></div></div>
+</div>
+
+<!-- TOP GP -->
+<div class="tp" id="tp-gp">
+  <div class="tw"><div class="th"><div class="tt">Top 100 by Gross Profit $</div><div class="tn" id="n-gp">—</div></div><div class="ts"><div id="t-gp"><div class="empty">Loading...</div></div></div></div>
+</div>
+
+<!-- MONTHLY -->
+<div class="tp" id="tp-monthly">
+  <div class="tw"><div class="th"><div class="tt">Monthly Breakdown — Jan / Feb / Mar per product</div><div class="tn" id="n-monthly">—</div></div><div class="ts"><div id="t-monthly"><div class="empty">Loading...</div></div></div></div>
+</div>
+
+<!-- VENDORS -->
+<div class="tp" id="tp-vendors">
+  <div class="tw"><div class="th"><div class="tt">Vendors — Pareto 80/20 by Gross Sales</div><div class="tn" id="n-vendors">—</div></div><div class="ts"><div id="t-vendors"><div class="empty">Loading...</div></div></div></div>
+</div>
+
+<!-- COST ZERO -->
+<div class="tp" id="tp-costzero">
+  <div class="tw"><div class="th"><div class="tt">Cost Zero Items — COGS = $0 in Shopify</div><div class="tn" id="n-costzero">Products sold with no cost loaded</div></div><div class="ts"><div id="t-costzero"><div class="empty">Loading...</div></div></div></div>
+</div>
+
+<!-- DISCOUNT ZERO -->
+<div class="tp" id="tp-disczero">
+  <div class="sec"><div class="sn">Summary</div><div class="sl"></div><div class="st">Customer paid $0 — by category &amp; month</div></div>
+  <div class="zg" id="dz-cards"></div>
+  <div class="tw"><div class="th"><div class="tt">Discount Zero Detail — order by order</div><div class="tn" id="n-disczero">—</div></div><div class="ts"><div id="t-disczero"><div class="empty">Loading...</div></div></div></div>
+</div>
+
+<!-- NO ACTIVITY -->
+<div class="tp" id="tp-nosales">
+  <div class="tw"><div class="th"><div class="tt">Zero Sales — No activity this quarter</div><div class="tn" id="n-nosales">Review for clearance or de-listing</div></div><div class="ts"><div id="t-nosales"><div class="empty">Loading...</div></div></div></div>
+</div>
+
+<div style="margin-top:24px;font-size:10px;color:var(--tx3);text-align:center">Shopify API &rarr; Google Sheets &rarr; corro_quarter.py &nbsp;&middot;&nbsp; <span id="fl">—</span></div>
+</div>
+
+<script>
+const SHEET_ID="REPLACE_WITH_YOUR_SHEET_ID";
+const AKEY="AIzaSyBg5zCUgi9GPXw6c4W5DL2q12GbxLJTNws";
+let cache={};
+const G=id=>document.getElementById(id);
+const f$=v=>{const n=parseFloat(v)||0;if(Math.abs(n)>=1e6)return"$"+(n/1e6).toFixed(2)+"M";if(Math.abs(n)>=1000)return"$"+(n/1000).toFixed(1)+"K";return"$"+Math.round(n).toLocaleString();};
+const fN=v=>{const n=parseInt(v)||0;return n>=1000?(n/1000).toFixed(1)+"K":n.toLocaleString();};
+const fM=v=>(parseFloat(v)||0)>=0.01?(parseFloat(v)*100).toFixed(1)+"%":(parseFloat(v)||0).toFixed(1)+"%";
+const gC=v=>{const n=parseFloat(v)||0;return n<0?"var(--C)":n<0.15?"var(--B)":"var(--A)";};
+const getSfx=()=>`${G("sq").value}_${G("sy").value}`;
+const getLbl=()=>{const q=G("sq").value,y=G("sy").value;const m={q1:"Jan–Mar",q2:"Apr–Jun",q3:"Jul–Sep",q4:"Oct–Dec"};return`${q.toUpperCase()} ${y} · ${m[q]}`;};
+
+function st(name){
+  document.querySelectorAll(".tbn").forEach((b,i)=>{
+    const tabs=["summary","products","sku","dropship","margin","gp","monthly","vendors","costzero","disczero","nosales"];
+    b.classList.toggle("on",tabs[i]===name);
+  });
+  document.querySelectorAll(".tp").forEach(p=>p.classList.remove("on"));
+  G(`tp-${name}`)?.classList.add("on");
+}
+
+function parseCSV(t){
+  const rows=[];let row=[],f="",inQ=false;
+  for(let i=0;i<t.length;i++){const c=t[i],nc=t[i+1];
+    if(inQ){if(c==='"'&&nc==='"'){f+='"';i++;}else if(c==='"'){inQ=false;}else f+=c;}
+    else{if(c==='"'){inQ=true;}else if(c===','){row.push(f);f="";}
+      else if(c==='\r'&&nc==='\n'){row.push(f);rows.push(row);row=[];f="";i++;}
+      else if(c==='\n'||c==='\r'){row.push(f);rows.push(row);row=[];f="";}
+      else f+=c;}}
+  if(f||row.length){row.push(f);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim()!==""));
+}
+
+async function ft(tab){
+  if(cache[tab])return cache[tab];
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(tab)}?key=${AKEY}`);
+    if(r.ok){const d=await r.json();if(!d.error&&d.values&&d.values.length>=2){const h=d.values[0];const res=d.values.slice(1).map(row=>{const o={};h.forEach((k,i)=>o[k]=row[i]||"");return o;});cache[tab]=res;setTimeout(()=>delete cache[tab],5*60*1000);return res;}}
+  }catch(e){}
+  try{
+    const r=await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`);
+    if(!r.ok)return[];const text=await r.text();if(!text||text.includes("<html"))return[];
+    const rows=parseCSV(text);if(rows.length<2)return[];const h=rows[0];
+    const res=rows.slice(1).map(row=>{const o={};h.forEach((k,i)=>o[k]=(row[i]||"").trim());return o;});
+    cache[tab]=res;setTimeout(()=>delete cache[tab],5*60*1000);return res;
+  }catch(e){console.error(tab,e);return[];}
+}
+
+function rSummary(rows){
+  if(!rows.length)return;
+  const get=m=>{const r=rows.find(r=>r.metric===m);if(!r)return"0";const k=Object.keys(r).find(k=>k.includes("Total")||k.includes("total")||k.includes("Q "));return r[k]||"0";};
+  const gs=parseFloat(get("Gross Sales"))||0,disc=parseFloat(get("Discounts"))||0;
+  const ret=parseFloat(get("Returns"))||0,ns=parseFloat(get("Net Sales"))||0;
+  const gp=parseFloat(get("Gross Profit"))||0;
+  const units=parseInt(get("Units Sold"))||0,ords=parseInt(get("Orders"))||0;
+  const margin=ns>0?((gp/ns)*100).toFixed(1):"—";
+  const dPct=gs>0?((Math.abs(disc)/gs)*100).toFixed(1):"—";
+  G("k-gs").textContent=f$(gs);G("k-disc").textContent=f$(Math.abs(disc));
+  G("k-disc-s").textContent=`${dPct}% of gross sales`;G("k-ret").textContent=f$(Math.abs(ret));
+  G("k-ns").textContent=f$(ns);G("k-gp").textContent=f$(gp);
+  G("k-gp-s").textContent=`${margin}% GP margin`;
+  G("k-units").textContent=fN(units);G("k-orders").textContent=fN(ords);
+  G("k-upd").textContent=(rows[0]?.updated_at||"").slice(0,10)||"—";
+  const el=G("mg");el.innerHTML="";
+  const allK=Object.keys(rows[0]||{});
+  const mK=allK.filter(k=>!["updated_at","quarter","metric"].includes(k)&&!k.toLowerCase().includes("total")&&!k.toLowerCase().includes("q total")&&!k.toLowerCase().includes("q "));
+  mK.forEach(m=>{
+    const card=document.createElement("div");card.className="mc";
+    card.innerHTML=`<div class="mn">${m}</div>`+
+      ["Gross Sales","Net Sales","Gross Profit","Units Sold"].map(met=>{
+        const row=rows.find(r=>r.metric===met);const val=row?(row[m]||"—"):"—";
+        const isGP=met==="Gross Profit",isU=met==="Units Sold";
+        const fv=isU?fN(val):f$(val);
+        return `<div class="mr"><span>${met}</span><span style="${isGP?"color:var(--A)":""}">${fv}</span></div>`;
+      }).join("");
+    el.appendChild(card);
+  });
+}
+
+function mkProdTable(rows,elId,noteId){
+  const el=G(elId);if(G(noteId))G(noteId).textContent=`${rows.length} products`;
+  if(!rows.length){el.innerHTML=`<div class="empty">No data — run pipeline first</div>`;return;}
+  const mC=Object.keys(rows[0]).filter(k=>k.includes("net_sales")&&k.includes(" "));
+  const totalGP=rows.reduce((a,r)=>a+parseFloat(r.gross_profit||0),0)||1;
+  el.innerHTML=`<table><thead><tr><th>#</th><th>Product</th><th>Vendor</th><th>Drop</th><th class="r gp">Gross Profit</th><th class="r gp">GP%</th><th class="r">Net Sales</th><th class="r">Gross Sales</th><th class="r dc">Discounts</th><th class="r">COGS</th><th class="r">Units</th><th class="r">Orders</th>${mC.map(c=>`<th class="r">${c.replace(" net_sales","")}</th>`).join("")}</tr></thead><tbody>${rows.map((r,i)=>{
+    const gp=parseFloat(r.gross_profit||0),gm=parseFloat(r.gross_margin||0);
+    const isDrop=(r.is_dropship||"").toUpperCase()==="YES";
+    const pGP=((gp/totalGP)*100).toFixed(1);
+    return `<tr><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td><td class="nm">${r.product_title||"—"}<small>${r.product_type||""}</small></td><td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td><td><span class="bdg ${isDrop?"dy":"dn"}">${isDrop?"YES":"NO"}</span></td><td class="r gps" style="color:${gC(gm)};font-weight:600">${f$(gp)}</td><td class="r" style="color:${gC(gm)};font-family:'DM Mono',monospace">${fM(gm)}</td><td class="r">${f$(r.net_sales)}</td><td class="r" style="color:var(--tx3)">${f$(r.gross_sales)}</td><td class="r dcs" style="color:var(--disc)">${f$(r.discounts)}</td><td class="r" style="color:var(--tx3)">${f$(r.cogs)}</td><td class="r">${fN(r.units)}</td><td class="r">${fN(r.orders)}</td>${mC.map(c=>`<td class="r" style="color:var(--tx3)">${f$(r[c]||0)}</td>`).join("")}</tr>`;
+  }).join("")}</tbody></table>`;
+}
+
+function mkSkuTable(rows,elId,noteId){
+  const el=G(elId);if(G(noteId))G(noteId).textContent=`${rows.length} SKUs`;
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
+  const mC=Object.keys(rows[0]).filter(k=>k.includes("net_sales")&&k.includes(" "));
+  el.innerHTML=`<table><thead><tr><th>#</th><th>Product</th><th>SKU</th><th>Vendor</th><th>Drop</th><th class="r gp">Gross Profit</th><th class="r gp">GP%</th><th class="r">Net Sales</th><th class="r dc">Discounts</th><th class="r">COGS</th><th class="r">Units</th><th class="r">Orders</th>${mC.map(c=>`<th class="r">${c.replace(" net_sales","")}</th>`).join("")}</tr></thead><tbody>${rows.map((r,i)=>{
+    const gm=parseFloat(r.gross_margin||0);
+    const isDrop=(r.is_dropship||"").toUpperCase()==="YES";
+    return `<tr><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td><td class="nm">${r.product_title||"—"}<small>${r.product_type||""}</small></td><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td><td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td><td><span class="bdg ${isDrop?"dy":"dn"}">${isDrop?"YES":"NO"}</span></td><td class="r gps" style="color:${gC(gm)};font-weight:600">${f$(r.gross_profit)}</td><td class="r" style="color:${gC(gm)};font-family:'DM Mono',monospace">${fM(gm)}</td><td class="r">${f$(r.net_sales)}</td><td class="r dcs" style="color:var(--disc)">${f$(r.discounts)}</td><td class="r" style="color:var(--tx3)">${f$(r.cogs)}</td><td class="r">${fN(r.units)}</td><td class="r">${fN(r.orders)}</td>${mC.map(c=>`<td class="r" style="color:var(--tx3)">${f$(r[c]||0)}</td>`).join("")}</tr>`;
+  }).join("")}</tbody></table>`;
+}
+
+function rMonthly(rows){
+  const el=G("t-monthly");if(G("n-monthly"))G("n-monthly").textContent=`${rows.length} products`;
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
+  const mSC=Object.keys(rows[0]).filter(k=>k.includes(" net_sales"));
+  const mUC=Object.keys(rows[0]).filter(k=>k.includes(" units")&&k.includes(" "));
+  const mMC=Object.keys(rows[0]).filter(k=>k.includes(" margin"));
+  el.innerHTML=`<table><thead><tr><th>#</th><th>Product</th><th>SKU</th><th>Vendor</th>${mSC.map(c=>`<th class="r">${c.replace(" net_sales","")} Sales</th><th class="r">${c.replace(" net_sales","")} Units</th><th class="r">${c.replace(" net_sales","")} Margin</th>`).join("")}<th class="r">Q Units</th><th class="r">Q Sales</th><th class="r">Avg Margin</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td><td class="nm">${r.product_title||"—"}</td><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td><td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td>${mSC.map((_,mi)=>`<td class="r">${f$(r[mSC[mi]]||0)}</td><td class="r">${fN(r[mUC[mi]]||0)}</td><td class="r" style="color:var(--tx3)">${fM(r[mMC[mi]]||0)}</td>`).join("")}<td class="r">${fN(r["Q total units"]||0)}</td><td class="r">${f$(r["Q total sales"]||0)}</td><td class="r" style="color:var(--A)">${fM(r["Q avg margin"]||0)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function rVendors(rows){
+  const el=G("t-vendors");if(G("n-vendors"))G("n-vendors").textContent=`${rows.length} vendors`;
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
+  el.innerHTML=`<table><thead><tr><th>#</th><th>Vendor</th><th class="r">SKUs</th><th class="r">Units</th><th class="r gp">Gross Profit</th><th class="r gp">GP%</th><th class="r">Net Sales</th><th class="r">Gross Sales</th><th class="r dc">Discounts</th><th class="r">COGS</th><th class="r">% Sales</th><th class="r">Cumulative</th></tr></thead><tbody>${rows.map((r,i)=>{
+    const gm=parseFloat(r.gross_margin||0);
+    const cum=parseFloat(r.cumulative_pct||0)*100;
+    const clr=cum<=80?"var(--A)":cum<=95?"var(--B)":"var(--C)";
+    return `<tr><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td><td class="nm" style="font-weight:600">${r.vendor||"—"}</td><td class="r">${fN(r.skus)}</td><td class="r">${fN(r.units)}</td><td class="r gps" style="color:${gC(gm)};font-weight:600">${f$(r.gross_profit)}</td><td class="r" style="color:${gC(gm)};font-family:'DM Mono',monospace">${fM(gm)}</td><td class="r">${f$(r.net_sales)}</td><td class="r" style="color:var(--tx3)">${f$(r.gross_sales)}</td><td class="r dcs" style="color:var(--disc)">${f$(r.discounts)}</td><td class="r" style="color:var(--tx3)">${f$(r.cogs)}</td><td class="r" style="font-family:'DM Mono',monospace">${((parseFloat(r.pct_of_sales||0))*100).toFixed(1)}%</td><td class="r"><span style="font-family:'DM Mono',monospace;font-size:10px;color:${clr}">${cum.toFixed(1)}%</span></td></tr>`;
+  }).join("")}</tbody></table>`;
+}
+
+function rCostZero(rows){
+  const el=G("t-costzero");if(G("n-costzero"))G("n-costzero").textContent=`${rows.length} products with COGS=$0`;
+  if(!rows.length){el.innerHTML=`<div class="empty">No cost-zero products — COGS loaded correctly in Shopify</div>`;return;}
+  el.innerHTML=`<table><thead><tr><th>#</th><th>Product</th><th>Vendor</th><th>Product Type</th><th class="r">Units</th><th class="r">Gross Sales</th><th class="r">COGS</th><th class="r gp">Gross Profit</th><th class="r">Orders</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td><td class="nm">${r.product_title||"—"}</td><td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td><td style="font-size:10px;color:var(--tx3)">${r.product_type||"—"}</td><td class="r">${fN(r.units)}</td><td class="r">${f$(r.gross_sales)}</td><td class="r" style="color:var(--disc)">$0</td><td class="r gps" style="color:var(--A)">${f$(r.gross_profit)}</td><td class="r">${fN(r.orders)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+const DZC={"Advent Calendar":"#F87171","Team Rider":"#818CF8","Influencer":"#F472B6","Marketing":"#FBBF24","Sponsorship":"#34D399","Internal / Staff":"#60A5FA","Other":"#6B6A65"};
+
+function rDiscZero(summary,detail){
+  const cards=G("dz-cards");cards.innerHTML="";
+  const el=G("t-disczero");if(G("n-disczero"))G("n-disczero").textContent=`${detail.length} line items`;
+  if(!summary.length){cards.innerHTML=`<div class="empty" style="grid-column:1/-1">No discount-zero orders this quarter</div>`;el.innerHTML=`<div class="empty">No data</div>`;return;}
+  const mUC=Object.keys(summary[0]).filter(k=>k.includes(" units")&&!k.includes("total"));
+  const mCC=Object.keys(summary[0]).filter(k=>k.includes(" cogs") &&!k.includes("total"));
+  summary.forEach(r=>{
+    const clr=DZC[r.category]||"#888";
+    const tu=parseInt(r["total units"]||0),tc=parseFloat(r["total cogs"]||0);
+    const card=document.createElement("div");card.className="zc";card.style.borderTopColor=clr;
+    card.innerHTML=`<div class="zcat" style="color:${clr}">${r.category}</div><div class="zv">${fN(tu)} <span style="font-size:13px;color:var(--tx3)">units</span></div><div class="zs">${r["sample products"]||""}</div><div class="zcg">COGS: ${f$(tc)}</div><div class="zm">${mUC.map((k,i)=>`<span class="zmi">${k.replace(" units","").slice(0,3)}: ${r[k]||0}u · ${f$(r[mCC[i]]||0)}</span>`).join("")}</div>`;
+    cards.appendChild(card);
+  });
+  if(!detail.length){el.innerHTML=`<div class="empty">No detail data</div>`;return;}
+  el.innerHTML=`<table><thead><tr><th>Date</th><th>Month</th><th>Category</th><th>Order</th><th>Product</th><th>Vendor</th><th class="r">Units</th><th class="r dc">Orig. Price</th><th class="r dc">Discount</th><th class="r">Net Paid</th><th class="r">Unit Cost</th><th class="r" style="color:var(--B)">COGS</th><th>Tags</th></tr></thead><tbody>${detail.slice(0,300).map(r=>{
+    const clr=DZC[r.category]||"#888";
+    return `<tr><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.created_at||"—"}</td><td style="font-size:11px;color:var(--tx3)">${r.month||"—"}</td><td><span style="font-size:10px;font-weight:600;color:${clr}">${r.category||"—"}</span></td><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.order_name||"—"}</td><td class="nm" style="max-width:170px">${r.product_title||"—"}<small>${r.product_type||""}</small></td><td style="font-size:10px;color:var(--tx3)">${r.vendor||"—"}</td><td class="r">${fN(r.units)}</td><td class="r dcs" style="color:var(--disc)">${f$(r.original_price)}</td><td class="r" style="color:var(--disc)">${f$(r.discount)}</td><td class="r">${f$(r.net_paid)}</td><td class="r" style="color:var(--tx3)">${f$(r.unit_cost)}</td><td class="r" style="color:var(--B)">${f$(r.cogs)}</td><td style="font-size:9px;color:var(--tx3);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.tags||""}">${(r.tags||"—").slice(0,35)}</td></tr>`;
+  }).join("")}</tbody></table>${detail.length>300?`<div style="padding:9px 14px;font-size:10px;color:var(--tx3)">Showing 300 of ${detail.length}. Full list in Google Sheets.</div>`:""}`;
+}
+
+function rNoSales(rows){
+  const el=G("t-nosales");if(G("n-nosales"))G("n-nosales").textContent=`${rows.length} SKUs with no activity`;
+  if(!rows.length){el.innerHTML=`<div class="empty">All products had activity this quarter!</div>`;return;}
+  el.innerHTML=`<table><thead><tr><th>#</th><th>Product</th><th>SKU</th><th>Vendor</th><th>Product Type</th><th>Dropship</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td><td class="nm">${r.product_title||"—"}</td><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td><td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td><td style="font-size:10px;color:var(--tx3)">${r.product_type||"—"}</td><td><span class="bdg ${(r.is_dropship||"").toUpperCase()==="YES"?"dy":"dn"}">${r.is_dropship||"NO"}</span></td></tr>`).join("")}</tbody></table>`;
+}
+
+async function render(){
+  const sfx=getSfx(),label=getLbl();
+  G("ov").classList.add("show");G("ovt").textContent=`Loading ${label}...`;
+  G("pb").textContent=label;G("fl").textContent=label;
+  const [sum,prod,sku,drop,margin,gp,monthly,vend,cz,dz,dzd,ns]=await Promise.all([
+    ft(`q_summary_${sfx}`),ft(`q_top_products_${sfx}`),ft(`q_top_sku_${sfx}`),
+    ft(`q_top_dropship_${sfx}`),ft(`q_top_margin_${sfx}`),ft(`q_top_gp_${sfx}`),
+    ft(`q_monthly_breakdown_${sfx}`),ft(`q_vendors_${sfx}`),
+    ft(`q_cost_zero_${sfx}`),ft(`q_discount_zero_${sfx}`),
+    ft(`q_discount_zero_detail_${sfx}`),ft(`q_zero_sales_${sfx}`),
+  ]);
+  rSummary(sum);
+  mkProdTable(prod,"t-products","n-products");
+  mkSkuTable(sku,"t-sku","n-sku");
+  mkProdTable(drop,"t-dropship","n-dropship");
+  mkProdTable(margin,"t-margin","n-margin");
+  mkProdTable(gp,"t-gp","n-gp");
+  rMonthly(monthly);rVendors(vend);
+  rCostZero(cz);rDiscZero(dz,dzd);rNoSales(ns);
+  G("ov").classList.remove("show");
+}
+
+function forceRefresh(){cache={};render();}
+function toggleTheme(){const h=document.documentElement,dk=h.getAttribute("data-theme")==="dark";h.setAttribute("data-theme",dk?"light":"dark");document.querySelector(".tbtn").textContent=dk?"☀":"☾";}
+render();
+</script>
+</body>
+</html>
