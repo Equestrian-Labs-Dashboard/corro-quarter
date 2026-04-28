@@ -42,6 +42,25 @@ select.ps option{background:var(--sf2);color:var(--tx)}
 .kl{font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px}
 .kv{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.04em;line-height:1}
 .ks{font-size:10px;color:var(--tx3);margin-top:4px}
+/* Channel cards grid */
+.ch-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.ch-card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
+.ch-name{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.ch-ns{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.04em;line-height:1;margin-bottom:4px}
+.ch-meta{font-size:10px;color:var(--tx3);margin-bottom:10px}
+.ch-gp-row{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--bd);padding-top:8px;margin-top:4px}
+.ch-gp-lbl{font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.ch-gp-val{font-family:'DM Mono',monospace;font-size:12px;color:var(--A);font-weight:500}
+/* New / Returning cards */
+.cust-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:10px}
+.cust-card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
+.cust-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.cust-rev{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.04em;line-height:1;margin-bottom:4px}
+.cust-meta{font-size:10px;color:var(--tx3);margin-bottom:10px}
+.cust-gp-row{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--bd);padding-top:8px;margin-top:4px}
+.cust-gp-lbl{font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.cust-gp-val{font-family:'DM Mono',monospace;font-size:12px;font-weight:500}
+/* legacy monthly cards */
 .mg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
 .mc{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
 .mn{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
@@ -90,7 +109,7 @@ td.dcs{border-left:2px solid rgba(248,113,113,.15)}
 @keyframes sp{to{transform:rotate(360deg)}}
 .ovt{font-size:12px;color:var(--tx);background:var(--sf);padding:8px 18px;border-radius:20px;border:1px solid var(--bd2)}
 .empty{padding:32px;text-align:center;font-size:12px;color:var(--tx3)}
-@media(max-width:700px){.mg{grid-template-columns:1fr}.kg{grid-template-columns:repeat(2,1fr)}.tbn{font-size:10px;padding:5px 8px}}
+@media(max-width:700px){.mg{grid-template-columns:1fr}.kg{grid-template-columns:repeat(2,1fr)}.ch-grid{grid-template-columns:1fr}.cust-grid{grid-template-columns:1fr}.tbn{font-size:10px;padding:5px 8px}}
 </style>
 </head>
 <body>
@@ -124,17 +143,17 @@ td.dcs{border-left:2px solid rgba(248,113,113,.15)}
 </div>
 
 <div class="tab-nav">
-  <button class="tbn on"  onclick="st('summary')">📊 Summary</button>
-  <button class="tbn"     onclick="st('products')">🏆 Top Products</button>
-  <button class="tbn"     onclick="st('sku')">📦 By SKU</button>
-  <button class="tbn"     onclick="st('dropship')">🚚 Dropship</button>
-  <button class="tbn"     onclick="st('margin')">💎 Best Margin</button>
-  <button class="tbn"     onclick="st('gp')">💰 Top GP</button>
-  <button class="tbn"     onclick="st('monthly')">📅 Monthly</button>
-  <button class="tbn"     onclick="st('vendors')">🏪 Vendors</button>
-  <button class="tbn"     onclick="st('costzero')">⚠️ Cost Zero</button>
-  <button class="tbn"     onclick="st('disczero')">🎁 Discount Zero</button>
-  <button class="tbn"     onclick="st('nosales')">💤 No Activity</button>
+  <button class="tbn on"  onclick="st('summary')">Summary</button>
+  <button class="tbn"     onclick="st('products')">Top Products</button>
+  <button class="tbn"     onclick="st('sku')">By SKU</button>
+  <button class="tbn"     onclick="st('dropship')">Dropship</button>
+  <button class="tbn"     onclick="st('margin')">Best Margin</button>
+  <button class="tbn"     onclick="st('gp')">Top GP</button>
+  <button class="tbn"     onclick="st('monthly')">Monthly</button>
+  <button class="tbn"     onclick="st('vendors')">Vendors</button>
+  <button class="tbn"     onclick="st('costzero')">Cost Zero</button>
+  <button class="tbn"     onclick="st('disczero')">Discount Zero</button>
+  <button class="tbn"     onclick="st('nosales')">No Activity</button>
 </div>
 
 <!-- SUMMARY -->
@@ -149,6 +168,17 @@ td.dcs{border-left:2px solid rgba(248,113,113,.15)}
     <div class="kc" style="--kc:var(--tx3)"><div class="kl">Orders</div><div class="kv" id="k-orders">—</div></div>
     <div class="kc" style="--kc:var(--tx3)"><div class="kl">Updated</div><div class="kv" style="font-size:13px;margin-top:4px" id="k-upd">—</div></div>
   </div>
+
+  <div class="sec"><div class="sn">Channels</div><div class="sl"></div><div class="st">Online · Concierge · Wellington</div></div>
+  <div class="ch-grid" id="ch-grid">
+    <div class="empty" style="grid-column:1/-1">Loading...</div>
+  </div>
+
+  <div class="sec"><div class="sn">Customers</div><div class="sl"></div><div class="st">New vs Returning</div></div>
+  <div class="cust-grid" id="cust-grid">
+    <div class="empty" style="grid-column:1/-1">Loading...</div>
+  </div>
+
   <div class="sec"><div class="sn">Monthly</div><div class="sl"></div><div class="st">Jan / Feb / Mar</div></div>
   <div class="mg" id="mg"><div class="empty" style="grid-column:1/-1">Loading...</div></div>
 </div>
@@ -185,7 +215,7 @@ td.dcs{border-left:2px solid rgba(248,113,113,.15)}
 
 <!-- VENDORS -->
 <div class="tp" id="tp-vendors">
-  <div class="tw"><div class="th"><div class="tt">Vendors — Pareto 80/20 by Gross Sales</div><div class="tn" id="n-vendors">—</div></div><div class="ts"><div id="t-vendors"><div class="empty">Loading...</div></div></div></div>
+  <div class="tw"><div class="th"><div class="tt">Vendors — Pareto 80/20 by Gross Profit</div><div class="tn" id="n-vendors">—</div></div><div class="ts"><div id="t-vendors"><div class="empty">Loading...</div></div></div></div>
 </div>
 
 <!-- COST ZERO -->
@@ -254,6 +284,51 @@ async function ft(tab){
     const res=rows.slice(1).map(row=>{const o={};h.forEach((k,i)=>o[k]=(row[i]||"").trim());return o;});
     cache[tab]=res;setTimeout(()=>delete cache[tab],5*60*1000);return res;
   }catch(e){console.error(tab,e);return[];}
+}
+
+// Channel colors
+const CH_COLORS={"online":"var(--D)","concierge":"var(--D)","wellington":"var(--B)"};
+function chColor(name){
+  const n=(name||"").toLowerCase();
+  if(n.includes("online")||n.includes("ecom"))return"var(--D)";
+  if(n.includes("wellington")||n.includes("pos"))return"var(--B)";
+  return"var(--D)";
+}
+
+function rChannels(rows){
+  const el=G("ch-grid");
+  if(!rows||!rows.length){el.innerHTML=`<div class="empty" style="grid-column:1/-1">No channel data — add q_channels_{sfx} sheet or derive from orders</div>`;return;}
+  el.innerHTML="";
+  rows.forEach(r=>{
+    const clr=chColor(r.channel||r.name||"");
+    const card=document.createElement("div");card.className="ch-card";
+    const gp=parseFloat(r.gross_profit||0);
+    const gm=parseFloat(r.gross_margin||0);
+    card.innerHTML=`<div class="ch-name" style="color:${clr}">${r.channel||r.name||"—"}</div>
+<div class="ch-ns" style="color:${clr}">${f$(r.net_sales||r.gross_sales||0)}</div>
+<div class="ch-meta">${fM(r.pct_of_sales||0)} of Net Sales · ${fN(r.orders||0)} orders · ${fN(r.units||0)} units</div>
+<div class="ch-gp-row"><span class="ch-gp-lbl">Gross Profit</span><span class="ch-gp-val" style="color:${gC(gm)}">${f$(gp)}</span></div>`;
+    el.appendChild(card);
+  });
+}
+
+function rCustomers(rows){
+  const el=G("cust-grid");
+  if(!rows||!rows.length){el.innerHTML=`<div class="empty" style="grid-column:1/-1">No customer data — add q_customers_{sfx} sheet</div>`;return;}
+  el.innerHTML="";
+  const colorMap={"new":"var(--A)","returning":"var(--B)","repeat":"var(--B)"};
+  rows.forEach(r=>{
+    const seg=(r.segment||r.type||"").toLowerCase();
+    const clr=colorMap[seg]||"var(--A)";
+    const gp=parseFloat(r.gross_profit||0);
+    const gm=parseFloat(r.gross_margin||0);
+    const card=document.createElement("div");card.className="cust-card";
+    card.innerHTML=`<div class="cust-lbl" style="color:${clr}">${r.segment||r.type||"—"} Customers</div>
+<div class="cust-rev" style="color:${clr}">${f$(r.revenue||r.net_sales||0)}</div>
+<div class="cust-meta">${fM(r.pct_of_revenue||r.pct_of_sales||0)} of revenue · ${fN(r.customers||0)} customers · ${fN(r.orders||0)} orders</div>
+<div class="cust-gp-row"><span class="cust-gp-lbl">Gross Profit</span><span class="cust-gp-val" style="color:${gC(gm)}">${f$(gp)}</span></div>`;
+    el.appendChild(card);
+  });
 }
 
 function rSummary(rows){
@@ -337,7 +412,7 @@ function rCostZero(rows){
   el.innerHTML=`<table><thead><tr><th>#</th><th>Product</th><th>Vendor</th><th>Product Type</th><th class="r">Units</th><th class="r">Gross Sales</th><th class="r">COGS</th><th class="r gp">Gross Profit</th><th class="r">Orders</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td><td class="nm">${r.product_title||"—"}</td><td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td><td style="font-size:10px;color:var(--tx3)">${r.product_type||"—"}</td><td class="r">${fN(r.units)}</td><td class="r">${f$(r.gross_sales)}</td><td class="r" style="color:var(--disc)">$0</td><td class="r gps" style="color:var(--A)">${f$(r.gross_profit)}</td><td class="r">${fN(r.orders)}</td></tr>`).join("")}</tbody></table>`;
 }
 
-const DZC={"Advent Calendar":"#F87171","Team Rider":"#818CF8","Influencer":"#F472B6","Marketing":"#FBBF24","Sponsorship":"#34D399","Internal / Staff":"#60A5FA","Other":"#6B6A65"};
+const DZC={"Advent Calendar":"#F87171","Team Rider":"#818CF8","Influencer":"#F472B6","Marketing":"#FBBF24","Sponsorship":"#34D399","Internal / Staff":"#60A5FA","Elite Cart Gift":"#FB923C","Other":"#6B6A65"};
 
 function rDiscZero(summary,detail){
   const cards=G("dz-cards");cards.innerHTML="";
@@ -369,14 +444,17 @@ async function render(){
   const sfx=getSfx(),label=getLbl();
   G("ov").classList.add("show");G("ovt").textContent=`Loading ${label}...`;
   G("pb").textContent=label;G("fl").textContent=label;
-  const [sum,prod,sku,drop,margin,gp,monthly,vend,cz,dz,dzd,ns]=await Promise.all([
+  const [sum,prod,sku,drop,margin,gp,monthly,vend,cz,dz,dzd,ns,ch,cust]=await Promise.all([
     ft(`q_summary_${sfx}`),ft(`q_top_products_${sfx}`),ft(`q_top_sku_${sfx}`),
     ft(`q_top_dropship_${sfx}`),ft(`q_top_margin_${sfx}`),ft(`q_top_gp_${sfx}`),
     ft(`q_monthly_breakdown_${sfx}`),ft(`q_vendors_${sfx}`),
     ft(`q_cost_zero_${sfx}`),ft(`q_discount_zero_${sfx}`),
     ft(`q_discount_zero_detail_${sfx}`),ft(`q_zero_sales_${sfx}`),
+    ft(`q_channels_${sfx}`),ft(`q_customers_${sfx}`),
   ]);
   rSummary(sum);
+  rChannels(ch);
+  rCustomers(cust);
   mkProdTable(prod,"t-products","n-products");
   mkSkuTable(sku,"t-sku","n-sku");
   mkProdTable(drop,"t-dropship","n-dropship");
