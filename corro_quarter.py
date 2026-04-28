@@ -49,7 +49,7 @@ MONTH_NAMES = {
     9:"September",10:"October",11:"November",12:"December"
 }
 
-# ── Discount-zero tag categories (Ceci request) ───────────────────
+# ── Discount-zero tag categories ───────────────────────────────────
 DISC_ZERO_CATS = [
     ("Advent Calendar",  ["advent calendar","advent_calendar"]),
     ("Team Rider",       ["team rider","team_rider"]),
@@ -57,6 +57,7 @@ DISC_ZERO_CATS = [
     ("Marketing",        ["marketing","marketing - sponsorship"]),
     ("Sponsorship",      ["sponsorship","sponsor"]),
     ("Internal / Staff", ["staff","internal","employee"]),
+    ("Elite Cart Gift",  ["elite cart","elite_cart","elitecart"]),
 ]
 def classify_disc_zero(tags_str):
     t = (tags_str or "").lower()
@@ -64,6 +65,12 @@ def classify_disc_zero(tags_str):
         if any(k in t for k in kws):
             return cat
     return "Other"
+
+# ── Elite Cart manual COGS overrides (product_title → unit_cost) ──
+ELITE_CART_COGS = {
+    "mystery cavali": 44.00,
+    "equine moscow":   8.94,
+}
 
 def quarter_range(q, y):
     months = QUARTER_MONTHS[q]
@@ -162,13 +169,21 @@ def fetch_product_map():
             uc   = inv.get("unitCost") or {}
             sku  = node.get("sku") or ""
             pid  = prod.get("id","").split("/")[-1]
+            title = prod.get("title","")
+            # Apply Elite Cart manual COGS override if unit cost is missing
+            unit_cost = float(uc.get("amount") or 0)
+            if unit_cost == 0:
+                for key, override_cost in ELITE_CART_COGS.items():
+                    if key in title.lower():
+                        unit_cost = override_cost
+                        break
             vmap[vid] = {
                 "product_id":   pid,
-                "product_title":prod.get("title",""),
+                "product_title":title,
                 "sku":          sku,
                 "vendor":       prod.get("vendor",""),
                 "product_type": prod.get("productType") or "Uncategorized",
-                "unit_cost":    float(uc.get("amount") or 0),
+                "unit_cost":    unit_cost,
             }
             all_product_ids.add(pid)
         pi = pv.get("pageInfo",{})
@@ -229,7 +244,7 @@ def mk_sku_row(info, months):
 def aggregate(orders, vmap, months):
     """Returns sku_agg (by variant_id) and disc_zero_rows (customer paid $0)."""
     sku_agg       = {}
-    disc_zero_rows = []  # customer paid $0 — Ceci's new sheet
+    disc_zero_rows = []
 
     for order in orders:
         om   = int((order.get("created_at","")[:7]).split("-")[-1] or 0)
@@ -271,7 +286,7 @@ def aggregate(orders, vmap, months):
                 r["monthly"][om]["net_sales"]   += net
                 r["monthly"][om]["units"]       += qty
 
-            # Discount zero: customer paid $0 (price=0 OR net≈0)
+            # Discount zero: customer paid $0
             if price == 0 or net < 0.01:
                 disc_zero_rows.append({
                     "order_name":   order.get("name",""),
@@ -462,8 +477,6 @@ def main():
 
     # ── 1. SUMMARY ────────────────────────────────────────────────
     h = ["updated_at","quarter","metric",mnames[0],mnames[1],mnames[2],"Q Total"]
-    # Monthly GP approximated proportionally from ShopifyQL total
-    # (ShopifyQL doesn't break GP by month directly)
     monthly_gp_approx = {}
     for m in months:
         m_ns = monthly_ns[m] or 0
@@ -486,7 +499,7 @@ def main():
     def prod_row(i, p, rank_by="gross_profit"):
         ns  = p["net_sales"] or 0
         gp  = p["gross_profit"] or 0
-        margin = round(gp/ns,4) if ns else 0  # decimal e.g. 0.19 = 19%
+        margin = round(gp/ns,4) if ns else 0
         total_sales = round(p["gross_sales"],2)
         return [
             now, label, i+1,
@@ -514,7 +527,7 @@ def main():
     def sku_row(i, r):
         ns  = r["net_sales"] or 0
         gp  = r["gross_profit"] or 0
-        margin = round(gp/ns,4) if ns else 0  # decimal
+        margin = round(gp/ns,4) if ns else 0
         return [
             now, label, i+1,
             r["product_title"], r["sku"], r.get("vendor",""), r.get("product_type",""),
@@ -572,8 +585,7 @@ def main():
                 p["units"],round(p["gross_sales"],2),0,round(p["gross_profit"],2),len(p["orders"])]
                for i,p in enumerate(cost_zero)])
 
-    # ── 8. DISCOUNT ZERO (customer paid $0) — Ceci request ───────
-    # Summary by category × month
+    # ── 8. DISCOUNT ZERO (customer paid $0) ───────────────────────
     cat_month = defaultdict(lambda: {m:{"units":0,"cogs":0.0,"products":set()} for m in months})
     for d in disc_zero_rows:
         om = next((m for m in months if MONTH_NAMES[m]==d["month"]), None)
@@ -629,7 +641,7 @@ def main():
         row_data = [now, label, i+1, r["product_title"], r["sku"], r.get("vendor","")]
         for m in months:
             ms = r["monthly"][m]["net_sales"] or 0
-            mg = r["gross_profit"] * (ms/ns) if ns else 0  # approx monthly GP
+            mg = r["gross_profit"] * (ms/ns) if ns else 0
             row_data += [r["monthly"][m]["units"], round(ms,2), round(mg/ms if ms else 0,3)]
         row_data += [r["units"], round(r["gross_sales"],2), avg_m]
         mb_rows.append(row_data)
@@ -639,7 +651,6 @@ def main():
     active_pids = {r["product_id"] for r in sku_agg.values()}
     zero_sales  = [v for pid,v in vmap.items()
                    if v["product_id"] not in active_pids and v["product_title"]]
-    # Deduplicate by product_title
     seen_titles = set(); zs_dedup = []
     for v in sorted(zero_sales, key=lambda x: x["product_title"]):
         if v["product_title"] not in seen_titles:
@@ -650,8 +661,8 @@ def main():
                 "YES" if v["unit_cost"]>0 else "NO"]
                for i,v in enumerate(zs_dedup)])
 
-    # ── 11. VENDORS PARETO ────────────────────────────────────────
-    sorted_vend = sorted(vendor_agg.values(), key=lambda x: x["gross_sales"], reverse=True)
+    # ── 11. VENDORS PARETO — sorted by gross_profit ───────────────
+    sorted_vend = sorted(vendor_agg.values(), key=lambda x: x["gross_profit"], reverse=True)
     total_sales_v = sum(v["gross_sales"] for v in sorted_vend) or 1
     h_v = ["updated_at","quarter","rank","vendor","skus","units","gross_sales","discounts",
            "returns","net_sales","cogs","gross_profit","gross_margin",
@@ -673,7 +684,7 @@ def main():
     write_tab(sh, f"q_vendors_{sfx}", h_v, vend_rows)
 
     print(f"\n{'='*60}")
-    print(f"  ✓ DONE — {label}")
+    print(f"  DONE — {label}")
     print(f"  Net Sales: ${total_ns:,.2f} | GP: ${total_gp:,.2f} ({gp_margin}%)")
     print(f"  Sheets written (all suffixed _{sfx}):")
     for t in ["q_summary","q_top_sku","q_top_products","q_top_dropship",
