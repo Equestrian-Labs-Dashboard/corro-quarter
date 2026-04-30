@@ -343,9 +343,72 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
 
 <!-- COST ZERO -->
 <div class="tp" id="tp-costzero">
-  <div class="tw">
-    <div class="th"><div class="tt">Cost Zero — Productos vendidos con COGS = $0 en Shopify</div><div class="tn" id="n-costzero">—</div></div>
-    <div class="ts"><div id="t-costzero"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div>
+
+  <!-- KPIs arriba -->
+  <div class="dz-kpis">
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Productos sin COGS</div>
+      <div class="dz-kpi-val" id="cz-tot-prods" style="color:#F87171">—</div>
+      <div class="dz-kpi-sub">vendidos este trimestre</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Gross Sales sin costo</div>
+      <div class="dz-kpi-val" id="cz-tot-gs" style="color:var(--green3)">—</div>
+      <div class="dz-kpi-sub">revenue sin COGS cargado</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Total descuentos aplicados</div>
+      <div class="dz-kpi-val" id="cz-tot-disc" style="color:#F87171">—</div>
+      <div class="dz-kpi-sub">en productos Cost Zero</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Gross Profit estimado</div>
+      <div class="dz-kpi-val" id="cz-tot-gp" style="color:var(--green3)">—</div>
+      <div class="dz-kpi-sub">sin COGS real = margen inflado</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Units vendidas</div>
+      <div class="dz-kpi-val" id="cz-tot-units" style="color:var(--tx)">—</div>
+      <div class="dz-kpi-sub">total del período</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Órdenes</div>
+      <div class="dz-kpi-val" id="cz-tot-ords" style="color:var(--tx)">—</div>
+      <div class="dz-kpi-sub">que incluyen Cost Zero</div>
+    </div>
+  </div>
+
+  <!-- Layout side-by-side -->
+  <div class="dz-layout">
+
+    <!-- Lista de productos (izquierda) -->
+    <div class="dz-sidebar">
+      <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Productos — clic para ver órdenes</div>
+      <div id="cz-prod-list"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div>
+    </div>
+
+    <!-- Panel de detalle (derecha) -->
+    <div class="dz-detail">
+      <div class="dz-det-head">
+        <div class="dz-det-title">
+          Órdenes del producto
+          <span class="dz-cat-badge" id="cz-active-badge" style="display:none"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="fcount" id="cz-ord-count">Selecciona un producto</span>
+          <button class="btn-top" onclick="clearCzFilter()" id="cz-clear-btn" style="font-size:10px;padding:3px 10px;display:none">✕ Todos</button>
+        </div>
+      </div>
+      <div class="dz-search-row">
+        <input class="dz-search-inp" id="cz-search" oninput="filterCzOrders()" placeholder="Buscar en órdenes de este producto…">
+      </div>
+      <div class="dz-table-wrap">
+        <div id="t-costzero-detail">
+          <div class="empty" style="color:var(--tx3)">← Selecciona un producto para ver sus órdenes</div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -662,43 +725,144 @@ function rVendors(rows){
     </tbody></table>`;
 }
 
-// COST ZERO — con fila de totales
-function rCostZero(rows){
-  const el=G("t-costzero");
-  if(G("n-costzero"))G("n-costzero").textContent=`${rows.length} products con COGS = $0`;
-  if(!rows.length){el.innerHTML=`<div class="empty">Todos los productos tienen COGS cargado ✓</div>`;return;}
-  const totU=rows.reduce((a,r)=>a+(parseInt(r.units)||0),0);
-  const totGS=rows.reduce((a,r)=>a+(parseFloat(r.gross_sales)||0),0);
-  const totGP=rows.reduce((a,r)=>a+(parseFloat(r.gross_profit)||0),0);
-  const totO=rows.reduce((a,r)=>a+(parseInt(r.orders)||0),0);
+// COST ZERO — layout side-by-side
+let _czAllOrders=[];
+let _czRows=[];
+let _czActiveProd="";
+
+function rCostZero(rows, detailRows){
+  _czRows=rows||[];
+  _czAllOrders=detailRows||[];
+  _czActiveProd="";
+
+  if(!_czRows.length){
+    G("cz-prod-list").innerHTML=`<div class="empty">Todos los productos tienen COGS cargado ✓</div>`;
+    return;
+  }
+
+  const totU=_czRows.reduce((a,r)=>a+(parseInt(r.units)||0),0);
+  const totGS=_czRows.reduce((a,r)=>a+(parseFloat(r.gross_sales)||0),0);
+  const totGP=_czRows.reduce((a,r)=>a+(parseFloat(r.gross_profit)||0),0);
+  const totO=_czRows.reduce((a,r)=>a+(parseInt(r.orders)||0),0);
+  const totDisc=_czAllOrders.reduce((a,r)=>a+(parseFloat(r.discount)||0),0);
+
+  G("cz-tot-prods").textContent=_czRows.length;
+  G("cz-tot-gs").textContent=f$(totGS);
+  G("cz-tot-disc").textContent=totDisc>0?f$(Math.abs(totDisc)):"—";
+  G("cz-tot-gp").textContent=f$(totGP);
+  G("cz-tot-units").textContent=fN(totU);
+  G("cz-tot-ords").textContent=fN(totO);
+
+  const list=G("cz-prod-list");
+  list.innerHTML="";
+
+  _czRows.forEach(r=>{
+    const gs=parseFloat(r.gross_sales)||0;
+    const prodOrds=_czAllOrders.filter(o=>(o.product_title||"").toLowerCase().trim()===(r.product_title||"").toLowerCase().trim());
+    const disc=prodOrds.reduce((a,o)=>a+(parseFloat(o.discount)||0),0);
+
+    const card=document.createElement("div");
+    card.className="zc";
+    card.dataset.prod=r.product_title||"";
+    card.style.setProperty("--zclr","#3DBF7A");
+    card.innerHTML=`
+      <div style="font-size:10px;font-weight:700;color:var(--tx);margin-bottom:4px;white-space:normal;line-height:1.3">${r.product_title||"—"}</div>
+      <div style="font-size:10px;color:var(--tx3);margin-bottom:6px">${r.vendor||"Sin vendor"} · ${r.product_type||"Uncategorized"}</div>
+      <div class="zc-units">${fN(r.units)} <span style="font-size:10px;color:var(--tx3);font-family:'DM Sans',sans-serif;font-weight:400">units</span></div>
+      <div class="zc-row"><span>Gross Sales</span><span style="color:var(--green3)">${f$(gs)}</span></div>
+      ${disc>0?`<div class="zc-row"><span>Descuentos</span><span style="color:#F87171">${f$(Math.abs(disc))}</span></div>`:`<div class="zc-row"><span>Descuentos</span><span style="color:var(--tx3)">—</span></div>`}
+      <div class="zc-row"><span>COGS</span><span style="color:#F87171">$0 ⚠</span></div>
+      <div class="zc-row"><span>Órdenes</span><span>${fN(r.orders)}</span></div>`;
+    card.addEventListener("click",()=>{
+      _czActiveProd=(_czActiveProd===r.product_title)?"":r.product_title;
+      document.querySelectorAll("#cz-prod-list .zc").forEach(c=>c.classList.toggle("active",c.dataset.prod===_czActiveProd&&!!_czActiveProd));
+      const badge=G("cz-active-badge");
+      const clearBtn=G("cz-clear-btn");
+      if(_czActiveProd){
+        badge.style.display="inline-flex";
+        badge.textContent=_czActiveProd.slice(0,30)+(_czActiveProd.length>30?"…":"");
+        badge.style.background="rgba(61,191,122,.15)";badge.style.color="var(--green3)";
+        clearBtn.style.display="flex";
+      } else {badge.style.display="none";clearBtn.style.display="none";}
+      G("cz-search").value="";
+      renderCzOrders();
+    });
+    list.appendChild(card);
+  });
+
+  renderCzOrders();
+}
+
+function filterCzOrders(){renderCzOrders();}
+
+function clearCzFilter(){
+  _czActiveProd="";G("cz-search").value="";
+  G("cz-active-badge").style.display="none";G("cz-clear-btn").style.display="none";
+  document.querySelectorAll("#cz-prod-list .zc").forEach(c=>c.classList.remove("active"));
+  renderCzOrders();
+}
+
+function renderCzOrders(){
+  const el=G("t-costzero-detail");
+  const search=(G("cz-search").value||"").toLowerCase();
+  const cnt=G("cz-ord-count");
+
+  if(!_czActiveProd){
+    el.innerHTML=`<div class="empty" style="color:var(--tx3)">← Selecciona un producto de la lista</div>`;
+    cnt.textContent="Selecciona un producto";return;
+  }
+
+  if(!_czAllOrders.length){
+    const prod=_czRows.find(r=>r.product_title===_czActiveProd);
+    if(prod){
+      el.innerHTML=`<div style="padding:20px 16px">
+        <div style="font-size:11px;color:var(--tx3);margin-bottom:12px">Resumen de <strong style="color:var(--tx)">${prod.product_title}</strong></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div class="dz-kpi"><div class="dz-kpi-lbl">Units</div><div class="dz-kpi-val" style="font-size:18px">${fN(prod.units)}</div></div>
+          <div class="dz-kpi"><div class="dz-kpi-lbl">Gross Sales</div><div class="dz-kpi-val" style="font-size:18px;color:var(--green3)">${f$(prod.gross_sales)}</div></div>
+          <div class="dz-kpi"><div class="dz-kpi-lbl">Órdenes</div><div class="dz-kpi-val" style="font-size:18px">${fN(prod.orders)}</div></div>
+        </div>
+        <div style="margin-top:14px;padding:12px;background:var(--sf3);border-radius:8px;font-size:11px;color:var(--tx3)">El detalle de órdenes requiere el sheet q_discount_zero_detail.</div>
+      </div>`;
+      cnt.textContent=`${prod.orders} órdenes (resumen)`;
+    }
+    return;
+  }
+
+  let filtered=_czAllOrders.filter(o=>(o.product_title||"").toLowerCase().trim()===(_czActiveProd||"").toLowerCase().trim());
+  if(search) filtered=filtered.filter(o=>(o.product_title+o.order_name+o.vendor+(o.tags||"")).toLowerCase().includes(search));
+
+  cnt.textContent=`${filtered.length} órdenes`;
+
+  if(!filtered.length){
+    el.innerHTML=`<div class="empty">Sin órdenes encontradas para este producto</div>`;return;
+  }
+
   el.innerHTML=`<table>
     <thead><tr>
-      <th>#</th><th>Product</th><th>Vendor</th><th>Type</th>
-      <th class="r">Units</th><th class="r">Gross Sales</th>
+      <th>Fecha</th><th>Orden</th><th>Mes</th><th>Categoría</th>
+      <th class="r">Units</th>
+      <th class="r">Precio Orig.</th>
+      <th class="r dc">Descuento</th>
+      <th class="r">Net Paid</th>
       <th class="r" style="color:#F87171">COGS</th>
-      <th class="r gp">Gross Profit</th><th class="r">Orders</th>
+      <th>Tags</th>
     </tr></thead>
     <tbody>
-    ${rows.map((r,i)=>`<tr>
-      <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td>
-      <td class="nm">${r.product_title||"—"}</td>
-      <td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td>
-      <td style="font-size:10px;color:var(--tx3)">${r.product_type||"—"}</td>
+    ${filtered.slice(0,500).map(r=>`<tr>
+      <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.created_at||"—"}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.order_name||"—"}</td>
+      <td style="font-size:11px;color:var(--tx3)">${r.month||"—"}</td>
+      <td><span style="font-size:10px;font-weight:700;color:${DZC[r.category]||"#888"}">${r.category||"—"}</span></td>
       <td class="r">${fN(r.units)}</td>
-      <td class="r">${f$(r.gross_sales)}</td>
+      <td class="r">${f$(r.original_price)}</td>
+      <td class="r dcs" style="color:#F87171">${f$(r.discount)}</td>
+      <td class="r">${f$(r.net_paid)}</td>
       <td class="r" style="color:#F87171">$0</td>
-      <td class="r gps" style="color:var(--green3)">${f$(r.gross_profit)}</td>
-      <td class="r">${fN(r.orders)}</td>
+      <td style="font-size:9px;color:var(--tx3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.tags||""}">${(r.tags||"—").slice(0,40)}</td>
     </tr>`).join("")}
-    <tr class="tot-row">
-      <td colspan="4" class="lbl">Total — ${rows.length} productos sin COGS</td>
-      <td class="r">${fN(totU)}</td>
-      <td class="r">${f$(totGS)}</td>
-      <td class="r neg">$0</td>
-      <td class="r pos">${f$(totGP)}</td>
-      <td class="r">${fN(totO)}</td>
-    </tr>
-    </tbody></table>`;
+    </tbody></table>
+    ${filtered.length>500?`<div style="padding:8px 14px;font-size:10px;color:var(--tx3)">Mostrando 500 de ${filtered.length}</div>`:""}`;
 }
 
 // ── DISCOUNT ZERO ──────────────────────────────────────────
@@ -889,7 +1053,7 @@ async function render(){
   mkProdTable(drop,"t-dropship","n-dropship",null,null);
   mkProdTable(margin,"t-margin","n-margin",null,null);
   mkProdTable(gp,"t-gp","n-gp",null,null);
-  rMonthly(monthly);rVendors(vend);rCostZero(cz);
+  rMonthly(monthly);rVendors(vend);rCostZero(cz,dzd);
   rDiscZero(dz,dzd);rNoSales(ns);
   const skuPill=G("pill-sku");if(skuPill)skuPill.textContent=sku?.length||"";
   G("ov").classList.remove("show");
