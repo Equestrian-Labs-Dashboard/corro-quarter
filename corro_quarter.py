@@ -1,5 +1,5 @@
 """
-CORRO QUARTERLY REPORT — v2.1
+CORRO QUARTERLY REPORT — v2.2
 ==============================
 Generates Corro's quarterly report from the Shopify API.
 This script is ONLY for the Quarter Report / Quarterly Dashboard.
@@ -15,7 +15,6 @@ Sheets generated (each tab receives suffix _{q}_{y}):
   q_discount_zero        — 100% discounted / free items by category
   q_discount_zero_detail — order-by-order 100% discount detail
   q_staff_orders         — staff/internal orders flagged separately
-  q_unknown_vendors      — sold products with missing/Unknown vendor
   q_monthly_breakdown    — monthly product breakdown
   q_zero_sales           — products with no activity in the period
   q_vendors              — vendor Pareto by Gross Profit
@@ -226,9 +225,28 @@ def fetch_product_map():
     print(f"  → {len(vmap)} variants | {filled} with COGS > 0")
     return vmap, all_product_ids
 
-def fetch_shopifyql(start, end):
-    """ShopifyQL: gross_profit per product from Shopify Analytics directly."""
-    print(f"  Fetching ShopifyQL gross_profit {start} → {end}...")
+def norm_key(k):
+    return str(k or "").strip().lower().replace(" ", "_").replace("-", "_")
+
+def row_value(row, *names, default=""):
+    wanted = {norm_key(n) for n in names}
+    for k, v in row.items():
+        if norm_key(k) in wanted:
+            return v
+    return default
+
+def row_float(row, *names):
+    return money(row_value(row, *names, default=0))
+
+def row_int(row, *names):
+    try:
+        return int(round(float(row_value(row, *names, default=0) or 0)))
+    except (TypeError, ValueError):
+        return 0
+
+def shopifyql_table(query, label):
+    """Run a ShopifyQL query and return normalized row dictionaries."""
+    print(f"  Fetching ShopifyQL {label}...")
     GQL = """
     query($q: String!) {
       shopifyqlQuery(query: $q) {
@@ -236,28 +254,87 @@ def fetch_shopifyql(start, end):
         parseErrors
       }
     }"""
-    q = (f"FROM sales SHOW gross_profit, gross_sales, net_sales, orders, net_items_sold "
-         f"GROUP BY product_title, product_vendor "
-         f"SINCE {start} UNTIL {end} ORDER BY gross_profit DESC")
-    d  = shopify_graphql(GQL, {"q": q})
+    d = shopify_graphql(GQL, {"q": query})
     sq = (d.get("data") or {}).get("shopifyqlQuery")
     if not sq or sq.get("parseErrors"):
-        print(f"  ⚠ ShopifyQL unavailable — GP estimated from COGS"); return {}
+        print(f"  ⚠ ShopifyQL {label} unavailable — using REST fallback")
+        if sq and sq.get("parseErrors"):
+            print(f"    parseErrors: {sq.get('parseErrors')}")
+        return []
     table = sq.get("tableData") or {}
-    cols  = [c["name"] for c in (table.get("columns") or [])]
-    rows  = table.get("rows") or []
+    cols = [c.get("name", "") for c in (table.get("columns") or [])]
+    rows = table.get("rows") or []
+    out = []
+    for row in rows:
+        if not isinstance(row, dict):
+            row = dict(zip(cols, row))
+        out.append(row)
+    print(f"  → {len(out)} rows from ShopifyQL {label}")
+    return out
+
+def fetch_shopifyql(start, end):
+    """Exact product-level metrics from ShopifyQL / Shopify Analytics."""
+    q = (
+        f"FROM sales "
+        f"SHOW gross_sales, discounts, net_sales, cost_of_goods_sold, "
+        f"net_items_sold, orders, gross_profit "
+        f"GROUP BY product_title, product_vendor "
+        f"SINCE {start} UNTIL {end} "
+        f"ORDER BY gross_profit DESC"
+    )
+    rows = shopifyql_table(q, "product metrics")
     result = {}
     for row in rows:
-        if not isinstance(row, dict): row = dict(zip(cols, row))
-        t = (row.get("product_title") or "").strip()
-        if not t: continue
-        result[t.lower()] = {
-            "gross_profit": float(row.get("gross_profit") or 0),
-            "gross_sales":  float(row.get("gross_sales")  or 0),
-            "net_sales":    float(row.get("net_sales")    or 0),
-            "vendor":       (row.get("product_vendor") or "").strip(),
+        title = str(row_value(row, "product_title", "Product title", default="") or "").strip()
+        if not title or title.lower() == "summary":
+            continue
+        result[title.lower()] = {
+            "gross_sales": row_float(row, "gross_sales", "Gross sales"),
+            "discounts": row_float(row, "discounts", "Discounts"),
+            "net_sales": row_float(row, "net_sales", "Net sales"),
+            "cogs": row_float(row, "cost_of_goods_sold", "Cost of goods sold"),
+            "units": row_int(row, "net_items_sold", "Net items sold"),
+            "orders": row_int(row, "orders", "Orders"),
+            "gross_profit": row_float(row, "gross_profit", "Gross profit"),
+            "vendor": str(row_value(row, "product_vendor", "Product vendor", default="") or "").strip(),
         }
-    print(f"  → {len(result)} products from ShopifyQL"); return result
+    return result
+
+def fetch_shopifyql_sku(start, end):
+    """Exact SKU-level metrics from ShopifyQL / Shopify Analytics.
+
+    This matches the Shopify Analytics query used for Top 100 by SKU:
+    FROM sales SHOW net_sales, discounts, cost_of_goods_sold, net_items_sold,
+    orders, gross_profit WHERE product_variant_sku IS NOT NULL
+    GROUP BY product_variant_sku ORDER BY gross_profit DESC.
+    """
+    q = (
+        f"FROM sales "
+        f"SHOW gross_sales, discounts, net_sales, cost_of_goods_sold, "
+        f"net_items_sold, orders, gross_profit "
+        f"WHERE product_variant_sku IS NOT NULL "
+        f"GROUP BY product_variant_sku "
+        f"SINCE {start} UNTIL {end} "
+        f"ORDER BY gross_profit DESC "
+        f"LIMIT 100"
+    )
+    rows = shopifyql_table(q, "SKU metrics")
+    result = {}
+    for row in rows:
+        sku = str(row_value(row, "product_variant_sku", "Product variant SKU", default="") or "").strip()
+        if not sku or sku.lower() == "summary":
+            continue
+        result[sku] = {
+            "sku": sku,
+            "gross_sales": row_float(row, "gross_sales", "Gross sales"),
+            "discounts": row_float(row, "discounts", "Discounts"),
+            "net_sales": row_float(row, "net_sales", "Net sales"),
+            "cogs": row_float(row, "cost_of_goods_sold", "Cost of goods sold"),
+            "units": row_int(row, "net_items_sold", "Net items sold"),
+            "orders": row_int(row, "orders", "Orders"),
+            "gross_profit": row_float(row, "gross_profit", "Gross profit"),
+        }
+    return result
 
 # ── AGGREGATE ─────────────────────────────────────────────────────
 def mk_sku_row(info, months):
@@ -310,7 +387,9 @@ def aggregate(orders, vmap, months):
             # order discount proportionally by gross line value. Never let a line's
             # discount exceed its own gross value; this avoids impossible rows such
             # as original price $5 / discount $16.
-            raw_line_disc = money(li.get("total_discount"))
+            raw_line_disc = sum(money(a.get("amount")) for a in (li.get("discount_allocations") or []))
+            if raw_line_disc <= 0:
+                raw_line_disc = money(li.get("total_discount"))
             if raw_line_disc <= 0 and order_discount_total > 0 and gross_line_total > 0:
                 raw_line_disc = order_discount_total * (gross / gross_line_total)
             disc = min(raw_line_disc, gross) if gross > 0 else max(raw_line_disc, 0)
@@ -387,7 +466,7 @@ def build_product_agg(sku_agg, sq_map, months):
         "product_title":"","vendor":"","product_type":"",
         "gross_sales":0.0,"discounts":0.0,"returns":0.0,
         "net_sales":0.0,"cogs":0.0,"gross_profit":0.0,
-        "units":0,"orders":set(),
+        "units":0,"orders":set(),"orders_count":0,
         "monthly":{m:{"gross_sales":0.0,"net_sales":0.0,"units":0} for m in months},
         "is_dropship":"NO",
     })
@@ -410,20 +489,93 @@ def build_product_agg(sku_agg, sq_map, months):
             p["monthly"][m]["gross_sales"] += row["monthly"][m]["gross_sales"]
             p["monthly"][m]["net_sales"]   += row["monthly"][m]["net_sales"]
             p["monthly"][m]["units"]       += row["monthly"][m]["units"]
-    # Use ShopifyQL GP when available, but do not overwrite a valid calculated
-    # gross profit with blank/zero ShopifyQL values. This keeps the dashboard from
-    # showing GP as zero when ShopifyQL is unavailable or returns incomplete data.
+    # ShopifyQL / Shopify Analytics is the source of truth for product-level
+    # sales metrics. REST aggregation is kept as fallback and for monthly splits.
     for t, p in prod.items():
         sq = sq_map.get(t.lower())
         if sq:
-            if abs(sq.get("gross_profit", 0)) > 0.01:
-                p["gross_profit"] = sq["gross_profit"]
-            if abs(sq.get("gross_sales", 0)) > 0.01:
-                p["gross_sales"] = sq["gross_sales"]
-            if abs(sq.get("net_sales", 0)) > 0.01:
-                p["net_sales"] = sq["net_sales"]
+            p["gross_sales"] = sq.get("gross_sales", p["gross_sales"])
+            p["discounts"] = sq.get("discounts", p["discounts"])
+            if "returns" in sq:
+                p["returns"] = sq["returns"]
+            p["net_sales"] = sq.get("net_sales", p["net_sales"])
+            p["cogs"] = sq.get("cogs", p["cogs"])
+            p["gross_profit"] = sq.get("gross_profit", p["gross_profit"])
+            p["units"] = sq.get("units", p["units"])
+            p["orders_count"] = sq.get("orders", len(p["orders"]))
             p["vendor"] = p["vendor"] or sq.get("vendor", "")
     return prod
+
+def build_exact_sku_rows(sku_agg, sq_sku_map, vmap, months):
+    """Return SKU rows with ShopifyQL metrics as the source of truth.
+
+    The REST order aggregation is still used for descriptive fields and monthly
+    columns, but the main SKU metrics (net sales, discounts, COGS, units,
+    orders, gross profit) come from ShopifyQL so they match Shopify Analytics.
+    """
+    grouped = {}
+
+    def merge_into(dst, src):
+        dst["gross_sales"] += src.get("gross_sales", 0)
+        dst["discounts"] += src.get("discounts", 0)
+        dst["returns"] += src.get("returns", 0)
+        dst["net_sales"] += src.get("net_sales", 0)
+        dst["cogs"] += src.get("cogs", 0)
+        dst["gross_profit"] += src.get("gross_profit", 0)
+        dst["units"] += src.get("units", 0)
+        dst["orders"] |= src.get("orders", set())
+        for m in months:
+            dst["monthly"][m]["gross_sales"] += src["monthly"][m]["gross_sales"]
+            dst["monthly"][m]["net_sales"] += src["monthly"][m]["net_sales"]
+            dst["monthly"][m]["units"] += src["monthly"][m]["units"]
+
+    for src in sku_agg.values():
+        sku = (src.get("sku") or "").strip()
+        if not sku:
+            continue
+        if sku not in grouped:
+            grouped[sku] = mk_sku_row(src, months)
+            grouped[sku]["orders"] = set()
+        merge_into(grouped[sku], src)
+
+    if not sq_sku_map:
+        return list(grouped.values())
+
+    info_by_sku = {}
+    for info in vmap.values():
+        sku = (info.get("sku") or "").strip()
+        if sku and sku not in info_by_sku:
+            info_by_sku[sku] = info
+
+    exact_rows = []
+    for sku, exact in sq_sku_map.items():
+        base = grouped.get(sku)
+        if not base:
+            base = mk_sku_row(info_by_sku.get(sku, {
+                "sku": sku,
+                "product_title": "",
+                "vendor": "",
+                "product_type": "Uncategorized",
+                "unit_cost": 0.0,
+                "product_id": "",
+            }), months)
+        row = dict(base)
+        row["monthly"] = {m: dict(base["monthly"][m]) for m in months}
+        row["sku"] = sku
+        # ShopifyQL is the source of truth for the main metrics.
+        row["gross_sales"] = exact.get("gross_sales", 0.0)
+        row["discounts"] = exact.get("discounts", 0.0)
+        row["returns"] = exact.get("returns", base.get("returns", 0.0))
+        row["net_sales"] = exact.get("net_sales", 0.0)
+        row["cogs"] = exact.get("cogs", 0.0)
+        row["gross_profit"] = exact.get("gross_profit", 0.0)
+        row["units"] = exact.get("units", 0)
+        if row["cogs"] > 0 and row["units"] > 0:
+            row["unit_cost"] = row["cogs"] / row["units"]
+        row["orders_count"] = exact.get("orders", 0)
+        row["shopifyql_exact"] = "YES"
+        exact_rows.append(row)
+    return exact_rows
 
 def build_vendor_agg(prod_agg):
     vend = defaultdict(lambda: {
@@ -524,14 +676,16 @@ def main():
     now   = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
 
     print(f"\n{'='*60}")
-    print(f"  CORRO QUARTERLY REPORT v2.0 — {label}")
+    print(f"  CORRO QUARTERLY REPORT v2.2 — {label}")
     print(f"  {start} → {end} | Months: {', '.join(mnames)}")
     print(f"{'='*60}\n")
 
     vmap, all_pids = fetch_product_map()
     orders         = fetch_orders(start, end)
     sq_map         = fetch_shopifyql(start, end)
+    sq_sku_map     = fetch_shopifyql_sku(start, end)
     sku_agg, disc_zero_rows, staff_rows = aggregate(orders, vmap, months)
+    sku_exact_rows = build_exact_sku_rows(sku_agg, sq_sku_map, vmap, months)
     prod_agg       = build_product_agg(sku_agg, sq_map, months)
     vendor_agg     = build_vendor_agg(prod_agg)
     disc_agg       = build_disc_agg(orders)
@@ -586,7 +740,7 @@ def main():
             round(p["gross_sales"],2), round(p["discounts"],2),
             round(p["returns"],2),     round(ns,2),
             round(p["cogs"],2),        round(gp,2),
-            round(margin,4), total_sales, len(p["orders"]),
+            round(margin,4), total_sales, p.get("orders_count") or len(p["orders"]),
             round(p["monthly"][months[0]]["net_sales"],2),
             round(p["monthly"][months[1]]["net_sales"],2),
             round(p["monthly"][months[2]]["net_sales"],2),
@@ -613,7 +767,7 @@ def main():
             round(r["gross_sales"],2), round(r["discounts"],2),
             round(r["returns"],2),     round(ns,2),
             round(r["cogs"],2),        round(gp,2),
-            round(margin,3), round(r["gross_sales"],2), len(r["orders"]),
+            round(margin,3), round(r["gross_sales"],2), r.get("orders_count") or len(r["orders"]),
             round(r["monthly"][months[0]]["net_sales"],2),
             round(r["monthly"][months[1]]["net_sales"],2),
             round(r["monthly"][months[2]]["net_sales"],2),
@@ -625,7 +779,7 @@ def main():
              f"{mnames[0]} net_sales",f"{mnames[1]} net_sales",f"{mnames[2]} net_sales"]
 
     # ── 2. TOP 100 BY SKU ─────────────────────────────────────────
-    sorted_skus = sorted(sku_agg.values(), key=lambda x: x["gross_profit"], reverse=True)
+    sorted_skus = sorted(sku_exact_rows, key=lambda x: x["gross_profit"], reverse=True)
     write_tab(sh, f"q_top_sku_{sfx}", h_sku,
               [sku_row(i,r) for i,r in enumerate(sorted_skus[:100])])
 
@@ -664,7 +818,7 @@ def main():
                 p["units"],round(p["gross_sales"],2),round(p["discounts"],2),round(p["net_sales"],2),
                 round(p["cogs"],2),round(p["gross_profit"],2),
                 round((p["gross_profit"]/p["net_sales"]),4) if p["net_sales"] else 0,
-                len(p["orders"])]
+                p.get("orders_count") or len(p["orders"])]
                for i,p in enumerate(cost_zero)])
 
     # ── 8. DISCOUNT ZERO (100% discount / customer paid $0) ───────
@@ -725,21 +879,6 @@ def main():
                "expected_item_payment","payment_gap","gross_profit","shipping_paid"]]
                for d in sorted(staff_rows, key=lambda x: x["created_at"])])
 
-    # ── 8c. UNKNOWN / MISSING VENDOR LIST ─────────────────────────
-    unknown_vendor = sorted(
-        [p for p in prod_agg.values() if (not (p.get("vendor") or "").strip()) or (p.get("vendor","").strip().lower() == "unknown")],
-        key=lambda x: x["gross_sales"], reverse=True)
-    h_uv = ["updated_at","quarter","rank","product_title","vendor","product_type",
-            "units","gross_sales","discounts","net_sales","cogs","gross_profit",
-            "gross_margin","orders"]
-    write_tab(sh, f"q_unknown_vendors_{sfx}", h_uv,
-              [[now,label,i+1,p["product_title"],p.get("vendor","") or "Unknown",p.get("product_type",""),
-                p["units"],round(p["gross_sales"],2),round(p["discounts"],2),round(p["net_sales"],2),
-                round(p["cogs"],2),round(p["gross_profit"],2),
-                round((p["gross_profit"]/p["net_sales"]),4) if p["net_sales"] else 0,
-                len(p["orders"])]
-               for i,p in enumerate(unknown_vendor)])
-
     # ── 9. MONTHLY BREAKDOWN ──────────────────────────────────────
     h_mb = ["updated_at","quarter","rank","product_title","sku","vendor",
             f"{mnames[0]} units",f"{mnames[0]} sales",f"{mnames[0]} margin",
@@ -747,7 +886,7 @@ def main():
             f"{mnames[2]} units",f"{mnames[2]} sales",f"{mnames[2]} margin",
             "Q total units","Q total sales","Q avg margin"]
     mb_rows = []
-    for i, r in enumerate(sorted(sku_agg.values(), key=lambda x: x["gross_profit"], reverse=True)[:100]):
+    for i, r in enumerate(sorted_skus[:100]):
         ns = r["net_sales"] or 0
         gp = r["gross_profit"] or 0
         avg_m = round(gp/ns,3) if ns else 0
@@ -802,7 +941,7 @@ def main():
     print(f"  Sheets written (all suffixed _{sfx}):")
     for t in ["q_summary","q_top_sku","q_top_products","q_top_dropship",
               "q_top_margin","q_top_gp","q_cost_zero","q_discount_zero",
-              "q_discount_zero_detail","q_staff_orders","q_unknown_vendors",
+              "q_discount_zero_detail","q_staff_orders",
               "q_monthly_breakdown","q_zero_sales","q_vendors"]:
         print(f"    {t}_{sfx}")
     print(f"{'='*60}\n")
