@@ -1,22 +1,24 @@
 """
-CORRO QUARTERLY REPORT — v2.0
+CORRO QUARTERLY REPORT — v2.1
 ==============================
-Genera el reporte trimestral de Corro desde Shopify API.
-Replica exactamente las hojas del Excel Q1_2026 + hoja nueva de Discount Zero.
+Generates Corro's quarterly report from the Shopify API.
+This script is ONLY for the Quarter Report / Quarterly Dashboard.
 
-Hojas que genera (sufijo _{q}_{y} en cada tab):
-  q_summary           — KPIs totales + monthly breakdown
-  q_top_sku           — Top 100 por SKU individual (con Jan/Feb/Mar)
-  q_top_products      — Top 100 agrupado por producto
-  q_top_dropship      — Top 100 solo dropship
-  q_top_margin        — Top 100 por Gross Margin % (min 5 unidades)
-  q_top_gp            — Top 100 por Gross Profit $
-  q_cost_zero         — Productos con COGS = 0 (sin costo cargado en Shopify)
-  q_discount_zero     — Productos donde el cliente pagó $0 (descuento 100%)
-                        por categoría: Team Rider, Influencer, Marketing, etc.
-  q_monthly_breakdown — Desglose mensual por producto (Jan/Feb/Mar)
-  q_zero_sales        — Productos sin actividad en el período
-  q_vendors           — Pareto por vendor
+Sheets generated (each tab receives suffix _{q}_{y}):
+  q_summary              — total KPIs + monthly breakdown
+  q_top_sku              — Top 100 by individual SKU/variant
+  q_top_products         — Top 100 grouped by product
+  q_top_dropship         — Top 100 dropship products
+  q_top_margin           — Top 100 by Gross Margin % (min 5 units)
+  q_top_gp               — Top 100 by Gross Profit $
+  q_cost_zero            — products sold with COGS = 0 in Shopify
+  q_discount_zero        — 100% discounted / free items by category
+  q_discount_zero_detail — order-by-order 100% discount detail
+  q_staff_orders         — staff/internal orders flagged separately
+  q_unknown_vendors      — sold products with missing/Unknown vendor
+  q_monthly_breakdown    — monthly product breakdown
+  q_zero_sales           — products with no activity in the period
+  q_vendors              — vendor Pareto by Gross Profit
 
 Run:
   python corro_quarter.py --quarter q1 --year 2026
@@ -49,7 +51,7 @@ MONTH_NAMES = {
     9:"September",10:"October",11:"November",12:"December"
 }
 
-# ── Discount-zero tag categories ───────────────────────────────────
+# ── 100% discount / free item categories ─────────────────────────
 DISC_ZERO_CATS = [
     ("Advent Calendar",  ["advent calendar","advent_calendar"]),
     ("Team Rider",       ["team rider","team_rider"]),
@@ -65,6 +67,36 @@ def classify_disc_zero(tags_str):
         if any(k in t for k in kws):
             return cat
     return "Other"
+
+
+def money(v):
+    try:
+        return float(v or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+def order_shipping_paid(order):
+    """Order-level shipping paid, used for staff/internal audit rows."""
+    total = 0.0
+    for sl in (order.get("shipping_lines") or []):
+        total += money(sl.get("price"))
+    if total:
+        return total
+    tsp = order.get("total_shipping_price_set") or {}
+    shop_money = tsp.get("shop_money") or {}
+    return money(shop_money.get("amount"))
+
+def customer_identity(order):
+    c = order.get("customer") or {}
+    first = (c.get("first_name") or "").strip()
+    last  = (c.get("last_name") or "").strip()
+    name  = (f"{first} {last}".strip()) or ""
+    email = (c.get("email") or "").strip()
+    return name, email
+
+def is_staff_tag(tags_str):
+    t = (tags_str or "").lower()
+    return any(k in t for k in ["staff", "internal", "employee"])
 
 # ── Elite Cart manual COGS overrides (product_title → unit_cost) ──
 ELITE_CART_COGS = {
@@ -134,8 +166,9 @@ def fetch_orders(start, end):
             "created_at_min":f"{start}T00:00:00-05:00",
             "created_at_max":f"{end}T23:59:59-05:00",
             "limit":250,
-            "fields":"id,name,created_at,financial_status,subtotal_price,"
-                     "total_discounts,discount_codes,source_name,tags,line_items,customer",
+            "fields":"id,name,created_at,financial_status,subtotal_price,total_price,"
+                     "total_discounts,discount_codes,source_name,tags,line_items,customer,"
+                     "shipping_lines,total_shipping_price_set",
         })
         for o in batch:
             oid = o.get("id")
@@ -242,71 +275,111 @@ def mk_sku_row(info, months):
     }
 
 def aggregate(orders, vmap, months):
-    """Returns sku_agg (by variant_id) and disc_zero_rows (customer paid $0)."""
-    sku_agg       = {}
+    """Returns SKU aggregates, 100% discount rows, and staff/internal rows."""
+    sku_agg = {}
     disc_zero_rows = []
+    staff_rows = []
 
     for order in orders:
-        om   = int((order.get("created_at","")[:7]).split("-")[-1] or 0)
-        disc_total  = float(order.get("total_discounts",0) or 0)
-        li_count    = len(order.get("line_items",[])) or 1
-        disc_per_li = disc_total / li_count
-        is_refund   = (order.get("financial_status") or "").startswith("refund")
-        tags_str    = order.get("tags") or ""
+        om = int((order.get("created_at", "")[:7]).split("-")[-1] or 0)
+        tags_str = order.get("tags") or ""
+        category = classify_disc_zero(tags_str)
+        staff_flag = category == "Internal / Staff" or is_staff_tag(tags_str)
+        shipping_paid = order_shipping_paid(order)
+        customer_name, customer_email = customer_identity(order)
+        is_refund = (order.get("financial_status") or "").startswith("refund")
 
-        for li in order.get("line_items",[]):
-            vid  = str(li.get("variant_id") or "")
+        line_items = order.get("line_items", []) or []
+        order_discount_total = money(order.get("total_discounts"))
+        gross_line_total = sum(money(li.get("price")) * int(li.get("quantity", 0) or 0) for li in line_items) or 0.0
+
+        for li in line_items:
+            vid = str(li.get("variant_id") or "")
             info = vmap.get(vid, {
-                "product_id":str(li.get("product_id","")),
-                "product_title":li.get("title","Unknown"),
-                "sku":li.get("sku",""),"vendor":"",
-                "product_type":"Uncategorized","unit_cost":0.0,
+                "product_id": str(li.get("product_id", "")),
+                "product_title": li.get("title", "Unknown"),
+                "sku": li.get("sku", ""),
+                "vendor": "",
+                "product_type": "Uncategorized",
+                "unit_cost": 0.0,
             })
-            qty   = int(li.get("quantity",0) or 0)
-            price = float(li.get("price",0) or 0) * qty
-            disc  = disc_per_li
-            net   = max(price - disc, 0)
-            cost  = info["unit_cost"] * qty
-            ret   = -net if is_refund else 0.0
+            qty = int(li.get("quantity", 0) or 0)
+            gross = money(li.get("price")) * qty
+
+            # Prefer Shopify's line-level discount. If it is missing, allocate the
+            # order discount proportionally by gross line value. Never let a line's
+            # discount exceed its own gross value; this avoids impossible rows such
+            # as original price $5 / discount $16.
+            raw_line_disc = money(li.get("total_discount"))
+            if raw_line_disc <= 0 and order_discount_total > 0 and gross_line_total > 0:
+                raw_line_disc = order_discount_total * (gross / gross_line_total)
+            disc = min(raw_line_disc, gross) if gross > 0 else max(raw_line_disc, 0)
+            net = max(gross - disc, 0)
+            discount_pct = round((disc / gross), 4) if gross > 0 else (1.0 if net < 0.01 else 0.0)
+
+            cost = info["unit_cost"] * qty
+            ret = -net if is_refund else 0.0
+            gross_profit = net - cost
 
             key = vid or f"nv_{info['product_id']}_{info['product_title']}"
             if key not in sku_agg:
                 sku_agg[key] = mk_sku_row(info, months)
             r = sku_agg[key]
-            r["gross_sales"]  += price
-            r["discounts"]    += disc
-            r["returns"]      += ret
-            r["net_sales"]    += net
-            r["cogs"]         += cost
-            r["gross_profit"] += max(net - cost, 0)
-            r["units"]        += qty
+            r["gross_sales"] += gross
+            r["discounts"] += disc
+            r["returns"] += ret
+            r["net_sales"] += net
+            r["cogs"] += cost
+            r["gross_profit"] += gross_profit
+            r["units"] += qty
             r["orders"].add(order["id"])
             if om in months:
-                r["monthly"][om]["gross_sales"] += price
-                r["monthly"][om]["net_sales"]   += net
-                r["monthly"][om]["units"]       += qty
+                r["monthly"][om]["gross_sales"] += gross
+                r["monthly"][om]["net_sales"] += net
+                r["monthly"][om]["units"] += qty
 
-            # Discount zero: customer paid $0
-            if price == 0 or net < 0.01:
-                disc_zero_rows.append({
-                    "order_name":   order.get("name",""),
-                    "created_at":   order.get("created_at","")[:10],
-                    "month":        MONTH_NAMES.get(om,""),
-                    "category":     classify_disc_zero(tags_str),
-                    "tags":         tags_str,
-                    "product_title":info["product_title"],
-                    "sku":          info["sku"],
-                    "vendor":       info["vendor"],
+            # Discount Zero = customer paid $0 for the line item.
+            # It is only considered a 100% discount when net paid is zero and the
+            # discount covers the full gross line amount, or when the item price is
+            # genuinely $0 in Shopify.
+            is_free_price = gross <= 0.01 and net <= 0.01
+            is_full_discount = gross > 0.01 and net <= 0.01 and discount_pct >= 0.999
+            if is_free_price or is_full_discount:
+                row = {
+                    "order_name": order.get("name", ""),
+                    "created_at": order.get("created_at", "")[:10],
+                    "month": MONTH_NAMES.get(om, ""),
+                    "category": category,
+                    "tags": tags_str,
+                    "customer_name": customer_name,
+                    "customer_email": customer_email,
+                    "product_title": info["product_title"],
+                    "sku": info["sku"],
+                    "vendor": info["vendor"] or "Unknown",
                     "product_type": info["product_type"],
-                    "units":        qty,
-                    "original_price":price,
-                    "discount":     disc,
-                    "net_paid":     net,
-                    "unit_cost":    info["unit_cost"],
-                    "cogs":         cost,
-                })
+                    "units": qty,
+                    "gross_sales": gross,
+                    "original_price": gross,
+                    "discount": disc,
+                    "discount_pct": discount_pct,
+                    "net_paid": net,
+                    "unit_cost": info["unit_cost"],
+                    "cogs": cost,
+                    "gross_profit": gross_profit,
+                    "shipping_paid": shipping_paid,
+                }
+                disc_zero_rows.append(row)
+                if staff_flag:
+                    expected_item_payment = round(cost * 1.10, 2)
+                    row_staff = dict(row)
+                    row_staff.update({
+                        "expected_item_payment": expected_item_payment,
+                        "payment_gap": round(net - expected_item_payment, 2),
+                        "is_dropship": "YES" if info["unit_cost"] > 0 else "NO",
+                    })
+                    staff_rows.append(row_staff)
 
-    return sku_agg, disc_zero_rows
+    return sku_agg, disc_zero_rows, staff_rows
 
 def build_product_agg(sku_agg, sq_map, months):
     """Group SKUs by product_title."""
@@ -337,14 +410,19 @@ def build_product_agg(sku_agg, sq_map, months):
             p["monthly"][m]["gross_sales"] += row["monthly"][m]["gross_sales"]
             p["monthly"][m]["net_sales"]   += row["monthly"][m]["net_sales"]
             p["monthly"][m]["units"]       += row["monthly"][m]["units"]
-    # Override GP with ShopifyQL if available
+    # Use ShopifyQL GP when available, but do not overwrite a valid calculated
+    # gross profit with blank/zero ShopifyQL values. This keeps the dashboard from
+    # showing GP as zero when ShopifyQL is unavailable or returns incomplete data.
     for t, p in prod.items():
         sq = sq_map.get(t.lower())
         if sq:
-            p["gross_profit"] = sq["gross_profit"]
-            p["gross_sales"]  = sq["gross_sales"]
-            p["net_sales"]    = sq["net_sales"]
-            p["vendor"]       = p["vendor"] or sq["vendor"]
+            if abs(sq.get("gross_profit", 0)) > 0.01:
+                p["gross_profit"] = sq["gross_profit"]
+            if abs(sq.get("gross_sales", 0)) > 0.01:
+                p["gross_sales"] = sq["gross_sales"]
+            if abs(sq.get("net_sales", 0)) > 0.01:
+                p["net_sales"] = sq["net_sales"]
+            p["vendor"] = p["vendor"] or sq.get("vendor", "")
     return prod
 
 def build_vendor_agg(prod_agg):
@@ -453,7 +531,7 @@ def main():
     vmap, all_pids = fetch_product_map()
     orders         = fetch_orders(start, end)
     sq_map         = fetch_shopifyql(start, end)
-    sku_agg, disc_zero_rows = aggregate(orders, vmap, months)
+    sku_agg, disc_zero_rows, staff_rows = aggregate(orders, vmap, months)
     prod_agg       = build_product_agg(sku_agg, sq_map, months)
     vendor_agg     = build_vendor_agg(prod_agg)
     disc_agg       = build_disc_agg(orders)
@@ -576,30 +654,35 @@ def main():
 
     # ── 7. COST ZERO (COGS = 0, but product sold) ─────────────────
     cost_zero = sorted(
-        [p for p in prod_agg.values() if p["cogs"]==0 and p["gross_sales"]>0],
+        [p for p in prod_agg.values() if p["cogs"] == 0 and p["gross_sales"] > 0],
         key=lambda x: x["gross_sales"], reverse=True)
     h_cz = ["updated_at","quarter","rank","product_title","vendor","product_type",
-             "units","gross_sales","cogs","gross_profit","orders"]
+            "units","gross_sales","discounts","net_sales","cogs","gross_profit",
+            "gross_margin","orders"]
     write_tab(sh, f"q_cost_zero_{sfx}", h_cz,
-              [[now,label,i+1,p["product_title"],p.get("vendor",""),p.get("product_type",""),
-                p["units"],round(p["gross_sales"],2),0,round(p["gross_profit"],2),len(p["orders"])]
+              [[now,label,i+1,p["product_title"],p.get("vendor","") or "Unknown",p.get("product_type",""),
+                p["units"],round(p["gross_sales"],2),round(p["discounts"],2),round(p["net_sales"],2),
+                round(p["cogs"],2),round(p["gross_profit"],2),
+                round((p["gross_profit"]/p["net_sales"]),4) if p["net_sales"] else 0,
+                len(p["orders"])]
                for i,p in enumerate(cost_zero)])
 
-    # ── 8. DISCOUNT ZERO (customer paid $0) ───────────────────────
-    cat_month = defaultdict(lambda: {m:{"units":0,"cogs":0.0,"products":set()} for m in months})
+    # ── 8. DISCOUNT ZERO (100% discount / customer paid $0) ───────
+    cat_month = defaultdict(lambda: {m:{"units":0,"cogs":0.0,"discount":0.0,"products":set()} for m in months})
     for d in disc_zero_rows:
-        om = next((m for m in months if MONTH_NAMES[m]==d["month"]), None)
+        om = next((m for m in months if MONTH_NAMES[m] == d["month"]), None)
         if om:
-            cat_month[d["category"]][om]["units"]   += d["units"]
-            cat_month[d["category"]][om]["cogs"]    += d["cogs"]
+            cat_month[d["category"]][om]["units"] += d["units"]
+            cat_month[d["category"]][om]["cogs"] += d["cogs"]
+            cat_month[d["category"]][om]["discount"] += d["discount"]
             cat_month[d["category"]][om]["products"].add(d["product_title"])
 
     all_cats = [c for c,_ in DISC_ZERO_CATS] + ["Other"]
     h_dz = ["updated_at","quarter","category",
-            f"{mnames[0]} units",f"{mnames[0]} cogs",
-            f"{mnames[1]} units",f"{mnames[1]} cogs",
-            f"{mnames[2]} units",f"{mnames[2]} cogs",
-            "total units","total cogs","sample products"]
+            f"{mnames[0]} units",f"{mnames[0]} discount",f"{mnames[0]} cogs",
+            f"{mnames[1]} units",f"{mnames[1]} discount",f"{mnames[1]} cogs",
+            f"{mnames[2]} units",f"{mnames[2]} discount",f"{mnames[2]} cogs",
+            "total units","total discount","total cogs","sample products"]
     dz_rows = []
     for cat in all_cats:
         if cat not in cat_month: continue
@@ -608,24 +691,54 @@ def main():
         for m in months: all_prods |= cm[m]["products"]
         dz_rows.append([
             now, label, cat,
-            cm[months[0]]["units"], round(cm[months[0]]["cogs"],2),
-            cm[months[1]]["units"], round(cm[months[1]]["cogs"],2),
-            cm[months[2]]["units"], round(cm[months[2]]["cogs"],2),
+            cm[months[0]]["units"], round(cm[months[0]]["discount"],2), round(cm[months[0]]["cogs"],2),
+            cm[months[1]]["units"], round(cm[months[1]]["discount"],2), round(cm[months[1]]["cogs"],2),
+            cm[months[2]]["units"], round(cm[months[2]]["discount"],2), round(cm[months[2]]["cogs"],2),
             sum(cm[m]["units"] for m in months),
+            round(sum(cm[m]["discount"] for m in months),2),
             round(sum(cm[m]["cogs"] for m in months),2),
             ", ".join(sorted(all_prods)[:5]),
         ])
     write_tab(sh, f"q_discount_zero_{sfx}", h_dz, dz_rows)
 
-    # Detail
+    # Order-by-order detail for 100% discounts
     h_dz_det = ["updated_at","quarter","order_name","created_at","month","category",
-                "tags","product_title","sku","vendor","product_type",
-                "units","original_price","discount","net_paid","unit_cost","cogs"]
+                "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
+                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
+                "gross_profit","shipping_paid"]
     write_tab(sh, f"q_discount_zero_detail_{sfx}", h_dz_det,
-              [[now,label]+[d[k] for k in ["order_name","created_at","month","category",
-               "tags","product_title","sku","vendor","product_type",
-               "units","original_price","discount","net_paid","unit_cost","cogs"]]
+              [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month","category",
+               "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
+               "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
+               "gross_profit","shipping_paid"]]
                for d in sorted(disc_zero_rows, key=lambda x: x["created_at"])])
+
+    # ── 8b. STAFF / INTERNAL AUDIT ────────────────────────────────
+    h_staff = ["updated_at","quarter","order_name","created_at","month","customer_name","customer_email",
+               "category","tags","product_title","sku","vendor","product_type","is_dropship",
+               "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
+               "expected_item_payment","payment_gap","gross_profit","shipping_paid"]
+    write_tab(sh, f"q_staff_orders_{sfx}", h_staff,
+              [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month","customer_name","customer_email",
+               "category","tags","product_title","sku","vendor","product_type","is_dropship",
+               "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
+               "expected_item_payment","payment_gap","gross_profit","shipping_paid"]]
+               for d in sorted(staff_rows, key=lambda x: x["created_at"])])
+
+    # ── 8c. UNKNOWN / MISSING VENDOR LIST ─────────────────────────
+    unknown_vendor = sorted(
+        [p for p in prod_agg.values() if (not (p.get("vendor") or "").strip()) or (p.get("vendor","").strip().lower() == "unknown")],
+        key=lambda x: x["gross_sales"], reverse=True)
+    h_uv = ["updated_at","quarter","rank","product_title","vendor","product_type",
+            "units","gross_sales","discounts","net_sales","cogs","gross_profit",
+            "gross_margin","orders"]
+    write_tab(sh, f"q_unknown_vendors_{sfx}", h_uv,
+              [[now,label,i+1,p["product_title"],p.get("vendor","") or "Unknown",p.get("product_type",""),
+                p["units"],round(p["gross_sales"],2),round(p["discounts"],2),round(p["net_sales"],2),
+                round(p["cogs"],2),round(p["gross_profit"],2),
+                round((p["gross_profit"]/p["net_sales"]),4) if p["net_sales"] else 0,
+                len(p["orders"])]
+               for i,p in enumerate(unknown_vendor)])
 
     # ── 9. MONTHLY BREAKDOWN ──────────────────────────────────────
     h_mb = ["updated_at","quarter","rank","product_title","sku","vendor",
@@ -689,7 +802,8 @@ def main():
     print(f"  Sheets written (all suffixed _{sfx}):")
     for t in ["q_summary","q_top_sku","q_top_products","q_top_dropship",
               "q_top_margin","q_top_gp","q_cost_zero","q_discount_zero",
-              "q_discount_zero_detail","q_monthly_breakdown","q_zero_sales","q_vendors"]:
+              "q_discount_zero_detail","q_staff_orders","q_unknown_vendors",
+              "q_monthly_breakdown","q_zero_sales","q_vendors"]:
         print(f"    {t}_{sfx}")
     print(f"{'='*60}\n")
 
