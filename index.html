@@ -492,14 +492,14 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
     </div>
   </div>
   <div class="tw">
-    <div class="th"><div><div class="tt">Staff / Internal Orders</div><div class="tn">Quarter-only audit for staff/internal tagged free or discounted items.</div></div><div class="tn" id="n-staff">—</div></div>
+    <div class="th"><div><div class="tt">Staff / Internal Orders</div><div class="tn">Quarter-only audit for staff/internal tagged items, including paid, discounted, and free lines.</div></div><div class="tn" id="n-staff">—</div></div>
     <div class="ts"><div id="t-staff"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div>
   </div>
 </div>
 
 <!-- NO ACTIVITY -->
 <div class="tp" id="tp-nosales">
-  <div class="tw"><div class="th"><div class="tt">Zero Sales — No activity this quarter</div><div class="tn" id="n-nosales">—</div></div>
+  <div class="tw"><div class="th"><div class="tt">Zero Sales / No Activity — Products not sold this quarter</div><div class="tn" id="n-nosales">—</div></div>
   <div class="ts"><div id="t-nosales"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div></div>
 </div>
 
@@ -1110,7 +1110,7 @@ function rStaff(rows){
   G("st-tot-lines").textContent=fN(rows.length);
   G("st-tot-expected").textContent=f$(expected);
   G("st-tot-paid").textContent=f$(paid);
-  if(!rows.length){el.innerHTML=`<div class="empty">No staff/internal 100% discount rows this quarter</div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty">No staff/internal tagged rows this quarter</div>`;return;}
   el.innerHTML=`<table>
     <thead><tr>
       <th>Date</th><th>Order</th><th>Customer</th><th>Product</th><th>Vendor</th><th>Drop</th>
