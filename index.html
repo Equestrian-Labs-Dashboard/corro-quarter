@@ -147,14 +147,14 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
 .dz-layout{display:grid;grid-template-columns:260px 1fr;gap:12px;align-items:start}
 .dz-sidebar{display:flex;flex-direction:column;gap:8px;position:sticky;top:12px}
 
-/* KPIs compactos arriba */
+/* Compact KPIs on top */
 .dz-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 .dz-kpi{background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:12px 14px}
 .dz-kpi-lbl{font-size:9px;color:var(--tx3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
 .dz-kpi-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.03em;line-height:1}
 .dz-kpi-sub{font-size:10px;color:var(--tx3);margin-top:2px}
 
-/* Tarjetas de categoría — sidebar */
+/* Category cards — sidebar */
 .zc{background:var(--sf2);border:1px solid var(--bd);border-left:3px solid var(--zclr,var(--bd));border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .12s}
 .zc:hover{background:var(--sf3);border-left-width:4px}
 .zc.active{background:var(--sf3);border-left-width:4px;border-color:var(--bd) var(--bd) var(--bd) var(--zclr)}
@@ -165,7 +165,7 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
 .zc-row span:last-child{font-family:'DM Mono',monospace;font-size:11px}
 .zc-units{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:4px}
 
-/* Detalle panel derecho */
+/* Right detail panel */
 .dz-detail{background:var(--sf2);border:1px solid var(--bd);border-radius:11px;overflow:hidden}
 .dz-det-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--bd);gap:10px;flex-wrap:wrap;background:var(--sf3)}
 .dz-det-title{font-size:12px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:8px}
@@ -175,7 +175,7 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
 .dz-search-inp:focus{border-color:var(--green3)}
 .dz-table-wrap{overflow:auto;max-height:calc(100vh - 260px);min-height:300px}
 
-/* Totals row en sidebar */
+/* Totals row in sidebar */
 .zc-total-all{background:var(--sf3);border:1px solid var(--bd2);border-radius:10px;padding:11px 14px;margin-top:4px}
 .zc-total-lbl{font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
 .zc-total-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)}
@@ -200,7 +200,7 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
 </style>
 </head>
 <body>
-<div class="ov" id="ov"><div class="spi"></div><div class="ovt" id="ovt">Cargando...</div></div>
+<div class="ov" id="ov"><div class="spi"></div><div class="ovt" id="ovt">Loading...</div></div>
 
 <div class="topbar">
   <div class="brand">
@@ -270,7 +270,7 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
 <div class="tp" id="tp-products">
   <div class="tw">
     <div class="th">
-      <div><div class="tt">Top 100 Products — All · ranked by Gross Profit</div><div class="tn">Agrupado por producto. Ordenado por GP$.</div></div>
+      <div><div class="tt">Top 100 Products — All · ranked by Gross Profit</div><div class="tn">Grouped by product. Sorted by GP$.</div></div>
       <div class="tn" id="n-products">—</div>
     </div>
     <div style="padding:10px 16px;border-bottom:1px solid var(--bd)">
@@ -290,10 +290,10 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
   <div class="tw">
     <div class="th">
       <div>
-        <div class="tt" style="display:flex;align-items:center;gap:7px">Top 100 by SKU — variantes individuales
-          <div class="info-tip"><div class="tip-icon">?</div><div class="tip-box"><strong>Products</strong> agrupa tallas/colores → total por producto.<br><br><strong>By SKU</strong> muestra cada variante por separado → útil para ver qué talla específica más vende.</div></div>
+        <div class="tt" style="display:flex;align-items:center;gap:7px">Top 100 by SKU — individual variants
+          <div class="info-tip"><div class="tip-icon">?</div><div class="tip-box"><strong>Products</strong> groups sizes/colors → total by product.<br><br><strong>By SKU</strong> shows each variant separately → useful for seeing which specific size sells the most.</div></div>
         </div>
-        <div class="tn">Cada fila = una variante/SKU específica.</div>
+        <div class="tn">Each row = one specific variant/SKU.</div>
       </div>
       <div class="tn" id="n-sku">—</div>
     </div>
@@ -330,14 +330,14 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
 <!-- MONTHLY -->
 <div class="tp" id="tp-monthly">
   <div class="tw">
-    <div class="th"><div><div class="tt">Monthly Breakdown</div><div class="tn">Ventas, units y margen por mes por producto.</div></div><div class="tn" id="n-monthly">—</div></div>
+    <div class="th"><div><div class="tt">Monthly Breakdown</div><div class="tn">Sales, units, and margin by month per product.</div></div><div class="tn" id="n-monthly">—</div></div>
     <div class="ts"><div id="t-monthly"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div>
   </div>
 </div>
 
 <!-- VENDORS -->
 <div class="tp" id="tp-vendors">
-  <div class="tw"><div class="th"><div class="tt">Vendors — Pareto 80/20 por Gross Profit</div><div class="tn" id="n-vendors">—</div></div>
+  <div class="tw"><div class="th"><div class="tt">Vendors — Pareto 80/20 by Gross Profit</div><div class="tn" id="n-vendors">—</div></div>
   <div class="ts"><div id="t-vendors"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div></div>
 </div>
 
@@ -409,58 +409,58 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
   </div>
 </div>
 
-<!-- ═══════════════ DISCOUNT ZERO — nuevo layout ═══════════════ -->
+<!-- ═══════════════ DISCOUNT ZERO — new layout ═══════════════ -->
 <div class="tp" id="tp-disczero">
 
-  <!-- KPIs compactos arriba -->
+  <!-- Compact KPIs on top -->
   <div class="dz-kpis">
     <div class="dz-kpi">
-      <div class="dz-kpi-lbl">Total units regaladas</div>
+      <div class="dz-kpi-lbl">Total gifted units</div>
       <div class="dz-kpi-val" id="dz-tot-units" style="color:var(--green3)">—</div>
-      <div class="dz-kpi-sub">todas las categorías</div>
+      <div class="dz-kpi-sub">all categories</div>
     </div>
     <div class="dz-kpi">
-      <div class="dz-kpi-lbl">Valor de descuentos</div>
+      <div class="dz-kpi-lbl">Discount value</div>
       <div class="dz-kpi-val" id="dz-tot-disc" style="color:#F87171">—</div>
-      <div class="dz-kpi-sub">precio original no cobrado</div>
+      <div class="dz-kpi-sub">original price not charged</div>
     </div>
     <div class="dz-kpi">
-      <div class="dz-kpi-lbl">COGS (costo regalado)</div>
+      <div class="dz-kpi-lbl">COGS (gifted cost)</div>
       <div class="dz-kpi-val" id="dz-tot-cogs" style="color:var(--gold2)">—</div>
-      <div class="dz-kpi-sub">costo de lo que se entregó</div>
+      <div class="dz-kpi-sub">cost of items given away</div>
     </div>
   </div>
 
-  <!-- Layout principal: sidebar + detalle -->
+  <!-- Main layout: sidebar + detail -->
   <div class="dz-layout">
 
-    <!-- SIDEBAR: tarjetas por categoría -->
+    <!-- SIDEBAR: category cards -->
     <div class="dz-sidebar" id="dz-sidebar">
-      <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Categorías — clic para filtrar</div>
+      <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Categories — click to filter</div>
       <div id="dz-cards">
         <div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div>
       </div>
-      <!-- Total global al fondo del sidebar -->
+      <!-- Global total at bottom of sidebar -->
       <div class="zc-total-all" id="dz-sidebar-total" style="display:none">
-        <div class="zc-total-lbl">Total global</div>
+        <div class="zc-total-lbl">Global total</div>
         <div id="dz-sidebar-total-rows"></div>
       </div>
     </div>
 
-    <!-- PANEL DERECHO: tabla de detalle -->
+    <!-- RIGHT PANEL: detail table -->
     <div class="dz-detail">
       <div class="dz-det-head">
         <div class="dz-det-title">
-          Detalle orden por orden
+          Order-by-order detail
           <span class="dz-cat-badge" id="dz-active-badge" style="display:none"></span>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="fcount" id="dz-count"></span>
-          <button class="btn-top" onclick="clearDzFilter()" id="dz-clear-btn" style="font-size:10px;padding:3px 10px;display:none">✕ Limpiar</button>
+          <button class="btn-top" onclick="clearDzFilter()" id="dz-clear-btn" style="font-size:10px;padding:3px 10px;display:none">✕ Clear</button>
         </div>
       </div>
       <div class="dz-search-row">
-        <input class="dz-search-inp" id="dz-search" oninput="filterDiscZero()" placeholder="Buscar producto, orden, vendor, tags…">
+        <input class="dz-search-inp" id="dz-search" oninput="filterDiscZero()" placeholder="Search product, order, vendor, tags…">
       </div>
       <div class="dz-table-wrap">
         <div id="t-disczero"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div>
@@ -472,7 +472,7 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
 
 <!-- NO ACTIVITY -->
 <div class="tp" id="tp-nosales">
-  <div class="tw"><div class="th"><div class="tt">Zero Sales — Sin actividad este trimestre</div><div class="tn" id="n-nosales">—</div></div>
+  <div class="tw"><div class="th"><div class="tt">Zero Sales — No activity this quarter</div><div class="tn" id="n-nosales">—</div></div>
   <div class="ts"><div id="t-nosales"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div></div>
 </div>
 
@@ -538,7 +538,7 @@ async function ft(tab){
 
 // SUMMARY
 function rSummary(rows){
-  if(!rows||!rows.length){G("mg").innerHTML=`<div class="empty">Sin datos — corre corro_quarter.py primero</div>`;return;}
+  if(!rows||!rows.length){G("mg").innerHTML=`<div class="empty">No data — run corro_quarter.py first</div>`;return;}
   const allKeys=Object.keys(rows[0]);
   const metricKey=allKeys.find(k=>k.toLowerCase()==="metric")||"metric";
   const totalKey=allKeys.find(k=>k.toLowerCase().includes("total"))||allKeys[allKeys.length-1];
@@ -572,7 +572,7 @@ function rSummary(rows){
 function mkProdTable(rows,elId,noteId,selId,fiId){
   const el=G(elId);
   if(G(noteId))G(noteId).textContent=`${rows.length} products`;
-  if(!rows.length){el.innerHTML=`<div class="empty">Sin datos</div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
   if(selId&&G(selId)){const vendors=[...new Set(rows.map(r=>r.vendor||"").filter(Boolean))].sort();G(selId).innerHTML=`<option value="">All vendors</option>`+vendors.map(v=>`<option value="${v}">${v}</option>`).join("");}
   const mC=Object.keys(rows[0]).filter(k=>k.includes("net_sales")&&k.includes(" ")&&!k.includes("Q"));
   const mn=getMN(),mA=mn.map(m=>m.slice(0,3));
@@ -623,7 +623,7 @@ function filterTable(key){
 function mkSkuTable(rows,elId,noteId){
   const el=G(elId);
   if(G(noteId))G(noteId).textContent=`${rows.length} SKUs`;
-  if(!rows.length){el.innerHTML=`<div class="empty">Sin datos</div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
   const vendors=[...new Set(rows.map(r=>r.vendor||"").filter(Boolean))].sort();
   G("fs-sku").innerHTML=`<option value="">All vendors</option>`+vendors.map(v=>`<option value="${v}">${v}</option>`).join("");
   const mn=getMN(),mC=Object.keys(rows[0]).filter(k=>k.includes("net_sales")&&k.includes(" "));
@@ -661,7 +661,7 @@ function mkSkuTable(rows,elId,noteId){
 // MONTHLY
 function rMonthly(rows){
   const el=G("t-monthly");if(G("n-monthly"))G("n-monthly").textContent=`${rows.length} products`;
-  if(!rows.length){el.innerHTML=`<div class="empty">Sin datos</div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
   const mn=getMN();
   const findMCols=type=>mn.map(m=>Object.keys(rows[0]).find(k=>k.toLowerCase().includes(m.toLowerCase().slice(0,3))&&k.toLowerCase().includes(type))||null);
   const salesCols=findMCols("net_sales").map((c,i)=>c||mn[i]+" net_sales");
@@ -694,7 +694,7 @@ function rMonthly(rows){
 // VENDORS
 function rVendors(rows){
   const el=G("t-vendors");if(G("n-vendors"))G("n-vendors").textContent=`${rows.length} vendors`;
-  if(!rows.length){el.innerHTML=`<div class="empty">Sin datos</div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
   el.innerHTML=`<table>
     <thead><tr>
       <th>#</th><th>Vendor</th><th class="r">SKUs</th><th class="r">Units</th>
@@ -937,13 +937,13 @@ function filterDiscZero(){
     return matchCat&&matchSearch;
   });
   const cnt=G("dz-count");
-  cnt.textContent=`${filtered.length}${_dzAllRows.length!==filtered.length?" de "+_dzAllRows.length:""} líneas`;
+  cnt.textContent=`${filtered.length}${_dzAllRows.length!==filtered.length?" of "+_dzAllRows.length:""} lines`;
   renderDzTable(filtered);
 }
 
 function setDzCat(cat){
   _dzActiveCat=cat;
-  // Actualizar tarjetas activas
+  // Update active cards
   document.querySelectorAll(".zc").forEach(c=>c.classList.toggle("active",!!cat&&c.dataset.cat===cat));
   // Badge
   const badge=G("dz-active-badge");
@@ -965,13 +965,13 @@ function clearDzFilter(){
 
 function renderDzTable(rows){
   const el=G("t-disczero");
-  if(!rows.length){el.innerHTML=`<div class="empty">Sin resultados para este filtro</div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty">No results for this filter</div>`;return;}
   el.innerHTML=`<table>
     <thead><tr>
-      <th>Fecha</th><th>Mes</th><th>Categoría</th><th>Orden</th>
-      <th>Producto</th><th>Vendor</th>
-      <th class="r">Units</th><th class="r dc">Precio Orig.</th>
-      <th class="r dc">Descuento</th><th class="r">Net Paid</th>
+      <th>Date</th><th>Month</th><th>Category</th><th>Order</th>
+      <th>Product</th><th>Vendor</th>
+      <th class="r">Units</th><th class="r dc">Orig. Price</th>
+      <th class="r dc">Discount</th><th class="r">Net Paid</th>
       <th class="r">Unit Cost</th><th class="r" style="color:var(--gold2)">COGS</th>
       <th>Tags</th>
     </tr></thead>
@@ -995,14 +995,14 @@ function renderDzTable(rows){
       </tr>`;
     }).join("")}
     </tbody></table>
-    ${rows.length>800?`<div style="padding:8px 14px;font-size:10px;color:var(--tx3)">Mostrando 800 de ${rows.length}. Lista completa en Google Sheets.</div>`:""}`;
+    ${rows.length>800?`<div style="padding:8px 14px;font-size:10px;color:var(--tx3)">Showing 800 of ${rows.length}. Full list in Google Sheets.</div>`:""}`;
 }
 
 function rDiscZero(summary,detail){
   _dzAllRows=detail||[];
   _dzActiveCat="";
 
-  // KPIs globales
+  // Global KPIs
   const totU=_dzAllRows.reduce((a,r)=>a+(parseInt(r.units)||0),0);
   const totC=_dzAllRows.reduce((a,r)=>a+(parseFloat(r.cogs)||0),0);
   const totD=_dzAllRows.reduce((a,r)=>a+(parseFloat(r.original_price)||0),0);
@@ -1011,9 +1011,9 @@ function rDiscZero(summary,detail){
   G("dz-tot-disc").textContent=f$(totD);
 
   // Count
-  if(G("n-disczero"))G("n-disczero").textContent=`${_dzAllRows.length} líneas`;
+  if(G("n-disczero"))G("n-disczero").textContent=`${_dzAllRows.length} lines`;
 
-  // Calcular totales por categoría desde detalle
+  // Calculate totals by category from detail rows
   const catMap={};
   _dzAllRows.forEach(r=>{
     const cat=r.category||"Other";
@@ -1027,11 +1027,11 @@ function rDiscZero(summary,detail){
   const cards=G("dz-cards");cards.innerHTML="";
 
   if(!Object.keys(catMap).length){
-    cards.innerHTML=`<div class="empty">Sin datos Discount Zero este trimestre</div>`;
-    G("t-disczero").innerHTML=`<div class="empty">Sin datos</div>`;return;
+    cards.innerHTML=`<div class="empty">No Discount Zero data this quarter</div>`;
+    G("t-disczero").innerHTML=`<div class="empty">No data</div>`;return;
   }
 
-  // Ordenar categorías por descuento (mayor primero)
+  // Sort categories by discount (highest first)
   const sortedCats=Object.entries(catMap).sort((a,b)=>b[1].disc-a[1].disc);
 
   sortedCats.forEach(([cat,data])=>{
@@ -1042,29 +1042,29 @@ function rDiscZero(summary,detail){
     card.innerHTML=`
       <div class="zcat" style="color:${clr}">${cat}</div>
       <div class="zc-units">${fN(data.units)} <span style="font-size:11px;color:var(--tx3);font-family:'DM Sans',sans-serif;font-weight:400">units</span></div>
-      <div class="zc-row"><span>Descuentos</span><span style="color:#F87171">${f$(data.disc)}</span></div>
+      <div class="zc-row"><span>Discounts</span><span style="color:#F87171">${f$(data.disc)}</span></div>
       <div class="zc-row"><span>COGS</span><span style="color:var(--gold2)">${f$(data.cogs)}</span></div>
-      <div class="zc-row"><span>Líneas</span><span>${data.count}</span></div>`;
+      <div class="zc-row"><span>Lines</span><span>${data.count}</span></div>`;
     card.addEventListener("click",()=>{
       setDzCat(_dzActiveCat===cat?"":cat);
     });
     cards.appendChild(card);
   });
 
-  // Totales en sidebar
+  // Totals in sidebar
   const totEl=G("dz-sidebar-total");
   const totRows=G("dz-sidebar-total-rows");
   totEl.style.display="block";
   totRows.innerHTML=`
     <div class="zc-total-row"><span>Total units</span><span>${fN(totU)}</span></div>
-    <div class="zc-total-row"><span>Total descuentos</span><span style="color:#F87171">${f$(totD)}</span></div>
+    <div class="zc-total-row"><span>Total discounts</span><span style="color:#F87171">${f$(totD)}</span></div>
     <div class="zc-total-row"><span>Total COGS</span><span style="color:var(--gold2)">${f$(totC)}</span></div>
-    <div class="zc-total-row"><span>${_dzAllRows.length} líneas</span><span>${sortedCats.length} cats</span></div>`;
+    <div class="zc-total-row"><span>${_dzAllRows.length} lines</span><span>${sortedCats.length} cats</span></div>`;
 
-  // Badge activo inicial
+  // Initial active badge
   G("dz-active-badge").style.display="none";
   G("dz-clear-btn").style.display="none";
-  G("dz-count").textContent=`${_dzAllRows.length} líneas`;
+  G("dz-count").textContent=`${_dzAllRows.length} lines`;
 
   renderDzTable(_dzAllRows);
 }
@@ -1072,7 +1072,7 @@ function rDiscZero(summary,detail){
 // NO SALES
 function rNoSales(rows){
   const el=G("t-nosales");if(G("n-nosales"))G("n-nosales").textContent=`${rows.length} products`;
-  if(!rows.length){el.innerHTML=`<div class="empty">Todos los productos tuvieron actividad este trimestre ✓</div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty">All products had activity this quarter ✓</div>`;return;}
   el.innerHTML=`<table>
     <thead><tr><th>#</th><th>Product</th><th>SKU</th><th>Vendor</th><th>Type</th><th>Drop</th></tr></thead>
     <tbody>
@@ -1089,7 +1089,7 @@ function rNoSales(rows){
 
 async function render(){
   const sfx=getSfx(),label=getLbl();
-  G("ov").classList.add("show");G("ovt").textContent=`Cargando ${label}…`;
+  G("ov").classList.add("show");G("ovt").textContent=`Loading ${label}…`;
   G("pb").textContent=label;G("fl").textContent=label;
   cache={};_dzAllRows=[];_dzActiveCat="";
 
