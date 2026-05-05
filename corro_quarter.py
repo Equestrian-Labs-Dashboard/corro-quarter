@@ -352,7 +352,14 @@ def mk_sku_row(info, months):
     }
 
 def aggregate(orders, vmap, months):
-    """Returns SKU aggregates, 100% discount rows, and staff/internal rows."""
+    """Returns SKU aggregates, 100% discount rows, and staff/internal audit rows.
+
+    Important:
+    - Discount Zero only captures line items paid at $0 / 100% discounted.
+    - Staff captures every line from staff/internal/employee tagged orders, even when
+      the staff member paid something. This is required to audit whether they paid
+      at least COGS + 10% and whether shipping was paid.
+    """
     sku_agg = {}
     disc_zero_rows = []
     staff_rows = []
@@ -417,6 +424,30 @@ def aggregate(orders, vmap, months):
                 r["monthly"][om]["net_sales"] += net
                 r["monthly"][om]["units"] += qty
 
+            base_audit_row = {
+                "order_name": order.get("name", ""),
+                "created_at": order.get("created_at", "")[:10],
+                "month": MONTH_NAMES.get(om, ""),
+                "category": category,
+                "tags": tags_str,
+                "customer_name": customer_name,
+                "customer_email": customer_email,
+                "product_title": info["product_title"],
+                "sku": info["sku"],
+                "vendor": info["vendor"] or "Unknown",
+                "product_type": info["product_type"],
+                "units": qty,
+                "gross_sales": gross,
+                "original_price": gross,
+                "discount": disc,
+                "discount_pct": discount_pct,
+                "net_paid": net,
+                "unit_cost": info["unit_cost"],
+                "cogs": cost,
+                "gross_profit": gross_profit,
+                "shipping_paid": shipping_paid,
+            }
+
             # Discount Zero = customer paid $0 for the line item.
             # It is only considered a 100% discount when net paid is zero and the
             # discount covers the full gross line amount, or when the item price is
@@ -424,39 +455,19 @@ def aggregate(orders, vmap, months):
             is_free_price = gross <= 0.01 and net <= 0.01
             is_full_discount = gross > 0.01 and net <= 0.01 and discount_pct >= 0.999
             if is_free_price or is_full_discount:
-                row = {
-                    "order_name": order.get("name", ""),
-                    "created_at": order.get("created_at", "")[:10],
-                    "month": MONTH_NAMES.get(om, ""),
-                    "category": category,
-                    "tags": tags_str,
-                    "customer_name": customer_name,
-                    "customer_email": customer_email,
-                    "product_title": info["product_title"],
-                    "sku": info["sku"],
-                    "vendor": info["vendor"] or "Unknown",
-                    "product_type": info["product_type"],
-                    "units": qty,
-                    "gross_sales": gross,
-                    "original_price": gross,
-                    "discount": disc,
-                    "discount_pct": discount_pct,
-                    "net_paid": net,
-                    "unit_cost": info["unit_cost"],
-                    "cogs": cost,
-                    "gross_profit": gross_profit,
-                    "shipping_paid": shipping_paid,
-                }
-                disc_zero_rows.append(row)
-                if staff_flag:
-                    expected_item_payment = round(cost * 1.10, 2)
-                    row_staff = dict(row)
-                    row_staff.update({
-                        "expected_item_payment": expected_item_payment,
-                        "payment_gap": round(net - expected_item_payment, 2),
-                        "is_dropship": "YES" if info["unit_cost"] > 0 else "NO",
-                    })
-                    staff_rows.append(row_staff)
+                disc_zero_rows.append(base_audit_row)
+
+            # Staff audit must NOT depend on Discount Zero. Staff members may have
+            # paid something, so we need every staff/internal/employee tagged line.
+            if staff_flag:
+                expected_item_payment = round(cost * 1.10, 2)
+                row_staff = dict(base_audit_row)
+                row_staff.update({
+                    "expected_item_payment": expected_item_payment,
+                    "payment_gap": round(net - expected_item_payment, 2),
+                    "is_dropship": "YES" if info["unit_cost"] > 0 else "NO",
+                })
+                staff_rows.append(row_staff)
 
     return sku_agg, disc_zero_rows, staff_rows
 
