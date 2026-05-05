@@ -248,7 +248,6 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
   <button class="tbn" data-tab="costzero">Cost Zero</button>
   <button class="tbn" data-tab="disczero">100% Discount</button>
   <button class="tbn" data-tab="staff">Staff</button>
-  <button class="tbn" data-tab="unknown">Unknown Vendors</button>
   <button class="tbn" data-tab="nosales">No Activity</button>
 </div>
 
@@ -495,14 +494,6 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
   <div class="tw">
     <div class="th"><div><div class="tt">Staff / Internal Orders</div><div class="tn">Quarter-only audit for staff/internal tagged free or discounted items.</div></div><div class="tn" id="n-staff">—</div></div>
     <div class="ts"><div id="t-staff"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div>
-  </div>
-</div>
-
-<!-- UNKNOWN VENDORS -->
-<div class="tp" id="tp-unknown">
-  <div class="tw">
-    <div class="th"><div><div class="tt">Unknown Vendors</div><div class="tn">Products sold this quarter with missing or Unknown vendor.</div></div><div class="tn" id="n-unknown">—</div></div>
-    <div class="ts"><div id="t-unknown"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div>
   </div>
 </div>
 
@@ -1151,35 +1142,6 @@ function rStaff(rows){
 }
 
 // UNKNOWN VENDORS
-function rUnknownVendors(rows){
-  const el=G("t-unknown");
-  if(G("n-unknown"))G("n-unknown").textContent=`${rows.length} products`;
-  if(!rows.length){el.innerHTML=`<div class="empty">No missing/Unknown vendors this quarter ✓</div>`;return;}
-  el.innerHTML=`<table>
-    <thead><tr>
-      <th>#</th><th>Product</th><th>Vendor</th><th>Type</th>
-      <th class="r">Units</th><th class="r">Gross Sales</th><th class="r">Net Sales</th>
-      <th class="r gp">Gross Profit</th><th class="r gp">GP%</th><th class="r">Orders</th>
-    </tr></thead>
-    <tbody>
-    ${rows.map((r,i)=>{
-      const gm=parseFloat(r.gross_margin||0);
-      return`<tr>
-        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td>
-        <td class="nm">${r.product_title||"—"}</td>
-        <td style="font-size:11px;color:#F87171">${r.vendor||"Unknown"}</td>
-        <td style="font-size:10px;color:var(--tx3)">${r.product_type||"—"}</td>
-        <td class="r">${fN(r.units)}</td>
-        <td class="r">${f$(r.gross_sales)}</td>
-        <td class="r">${f$(r.net_sales)}</td>
-        <td class="r gps" style="color:${gC(gm)};font-weight:600">${f$(r.gross_profit)}</td>
-        <td class="r" style="color:${gC(gm)}">${fM(gm)}</td>
-        <td class="r">${fN(r.orders)}</td>
-      </tr>`;
-    }).join("")}
-    </tbody></table>`;
-}
-
 // NO SALES
 function rNoSales(rows){
   const el=G("t-nosales");if(G("n-nosales"))G("n-nosales").textContent=`${rows.length} products`;
@@ -1210,9 +1172,9 @@ async function render(){
     `q_monthly_breakdown_${sfx}`,`q_vendors_${sfx}`,
     `q_cost_zero_${sfx}`,`q_discount_zero_${sfx}`,
     `q_discount_zero_detail_${sfx}`,`q_staff_orders_${sfx}`,
-    `q_unknown_vendors_${sfx}`,`q_zero_sales_${sfx}`,
+    `q_zero_sales_${sfx}`,
   ];
-  const [sum,prod,sku,drop,margin,gp,monthly,vend,cz,dz,dzd,staff,unknown,ns]=await Promise.all(tabs.map(ft));
+  const [sum,prod,sku,drop,margin,gp,monthly,vend,cz,dz,dzd,staff,ns]=await Promise.all(tabs.map(ft));
 
   rSummary(sum);
   mkProdTable(prod,"t-products","n-products","fs-products","fi-products");
@@ -1221,7 +1183,7 @@ async function render(){
   mkProdTable(margin,"t-margin","n-margin",null,null);
   mkProdTable(gp,"t-gp","n-gp",null,null);
   rMonthly(monthly);rVendors(vend);rCostZero(cz,monthly);
-  rDiscZero(dz,dzd);rStaff(staff);rUnknownVendors(unknown);rNoSales(ns);
+  rDiscZero(dz,dzd);rStaff(staff);rNoSales(ns);
   const skuPill=G("pill-sku");if(skuPill)skuPill.textContent=sku?.length||"";
   G("ov").classList.remove("show");
 }
