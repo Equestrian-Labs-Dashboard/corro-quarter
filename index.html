@@ -1201,7 +1201,7 @@ function rStaff(rows){
   const expected= _stAllRows.reduce((a,r)=>a+(parseFloat(r.expected_item_payment)||0),0);
   const paid    = _stAllRows.reduce((a,r)=>a+(parseFloat(r.net_paid)||0),0);
   const gap     = paid - expected;
-  // Staff tab must group by ShopifyQL staff_member, NOT customer.
+  // Staff tab must group by GraphQL staffMember, NOT customer.
   const personKeyOf = r => r.staff_member || r.staff_person_name || r.order_staff_name || "Unknown";
   const personNameOf = r => r.staff_member || r.staff_person_name || r.order_staff_name || "Unknown";
   const personEmailOf = r => r.staff_person_email || r.order_staff_email || "";
@@ -1217,7 +1217,7 @@ function rStaff(rows){
   G("st-tot-gap").textContent    = f$(gap);
   if(G("st-tot-gap")) G("st-tot-gap").style.color = gap < 0 ? "#F87171" : "var(--green3)";
 
-  // Build sidebar: one card per staff member from ShopifyQL.
+  // Build sidebar: one card per staff member from GraphQL Order.staffMember.
   const personMap = {};
   _stAllRows.forEach(r=>{
     const key = personKeyOf(r);
@@ -1248,7 +1248,7 @@ function rStaff(rows){
     const gapClr = p.gap<0?"#F87171":"var(--green3)";
     card.innerHTML=`
       <div style="font-size:10px;font-weight:700;color:var(--tx);margin-bottom:2px">${p.name}</div>
-      <div style="font-size:9px;color:var(--tx3);margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||"ShopifyQL staff_member"}</div>
+      <div style="font-size:9px;color:var(--tx3);margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||"GraphQL staffMember"}</div>
       <div class="zc-units">${p.lines} <span style="font-size:10px;color:var(--tx3);font-family:'DM Sans',sans-serif;font-weight:400">lines</span></div>
       <div class="zc-row"><span>Orders</span><span>${p.orders.size}</span></div>
       <div class="zc-row"><span>Net paid</span><span style="color:var(--green3)">${f$(p.paid)}</span></div>
