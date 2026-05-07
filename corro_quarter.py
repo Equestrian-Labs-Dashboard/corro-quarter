@@ -1,5 +1,5 @@
 """
-CORRO QUARTERLY REPORT — v2.5
+CORRO QUARTERLY REPORT — v2.6
 ==============================
 Generates Corro's quarterly report from the Shopify API.
 This script is ONLY for the Quarter Report / Quarterly Dashboard.
@@ -63,7 +63,7 @@ DISC_ZERO_CATS = [
 ]
 
 # Staff audit source of truth. Shopify recommended querying orders by tag and
-# reading staff_member from ShopifyQL instead of grouping by customer.
+# reading staffMember from Shopify GraphQL Order instead of grouping by customer.
 STAFF_ORDER_TAG = os.environ.get("STAFF_ORDER_TAG", "employee order")
 def classify_disc_zero(tags_str):
     t = (tags_str or "").lower()
@@ -186,62 +186,82 @@ def chunks(seq, size):
     for i in range(0, len(seq), size):
         yield seq[i:i+size]
 
-def fetch_order_staff_map(order_ids):
-    """Return Shopify staff member / creator info by numeric order id.
+def fetch_order_staff_map(start, end):
+    """Return Shopify Order.staffMember info by order id/name for the date range.
 
-    Shopify exposes Order.staffMember in GraphQL for orders that have a
-    staff/POS creator and when the access token has permission. If the token
-    cannot read this field, the report still runs and the creator columns stay
-    blank instead of breaking the quarter export.
+    This follows the Shopify GraphQL orders query pattern:
+    orders(query: "created_at:>=YYYY-MM-DD created_at:<=YYYY-MM-DD") {
+      node { id name createdAt staffMember { id name } }
+    }
+
+    Staff tab must use this order-level staffMember field as the responsible
+    staff person. Customer is kept only as context in the detail table.
     """
-    ids = [str(x) for x in order_ids if x]
-    if not ids:
-        return {}
-
-    print("  Fetching order staff creators via GraphQL...")
+    print("  Fetching order staff members via GraphQL orders query...")
     out = {}
+    q = f"created_at:>={start} created_at:<={end}"
     QUERY = """
-    query($ids: [ID!]!) {
-      nodes(ids: $ids) {
-        ... on Order {
-          id
-          name
-          staffMember {
+    query($cursor: String, $q: String!) {
+      orders(first: 250, after: $cursor, query: $q) {
+        edges {
+          node {
             id
             name
-            email
+            createdAt
+            staffMember {
+              id
+              name
+            }
           }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
         }
       }
     }"""
 
-    for batch in chunks(ids, 100):
-        gql_ids = [f"gid://shopify/Order/{oid}" for oid in batch]
+    cursor = None
+    scanned = 0
+    while True:
         try:
-            d = shopify_graphql(QUERY, {"ids": gql_ids})
+            d = shopify_graphql(QUERY, {"cursor": cursor, "q": q})
         except Exception as e:
-            print(f"  ⚠ staffMember lookup failed: {e}")
+            print(f"  ⚠ staffMember orders lookup failed: {e}")
             return out
 
         if d.get("errors"):
-            print("  ⚠ staffMember unavailable — leaving created_by fields blank")
-            # Common when the app/token lacks read_users or store plan access.
+            print("  ⚠ staffMember unavailable — leaving staffMember fields blank")
+            print(f"    errors: {d.get('errors')}")
             return out
 
-        for node in ((d.get("data") or {}).get("nodes") or []):
-            if not node:
-                continue
-            oid = str(node.get("id", "")).split("/")[-1]
+        orders_conn = (d.get("data") or {}).get("orders") or {}
+        for edge in (orders_conn.get("edges") or []):
+            node = edge.get("node") or {}
+            scanned += 1
             sm = node.get("staffMember") or {}
-            out[oid] = {
-                "order_staff_member_id": str(sm.get("id", "")).split("/")[-1] if sm.get("id") else "",
-                "order_staff_name": sm.get("name") or "",
-                "order_staff_email": sm.get("email") or "",
+            staff_id = str(sm.get("id", "")).split("/")[-1] if sm.get("id") else ""
+            staff_name = (sm.get("name") or "").strip()
+            meta = {
+                "order_staff_member_id": staff_id,
+                "order_staff_name": staff_name,
+                "order_staff_email": "",
+                "staff_member": staff_name,
+                "staff_source": "GraphQL Order.staffMember",
             }
-        time.sleep(0.2)
+            for raw in (node.get("id", ""), node.get("name", "")):
+                for key in order_lookup_keys(raw):
+                    out[key] = meta
 
-    filled = sum(1 for v in out.values() if v.get("order_staff_name") or v.get("order_staff_email"))
-    print(f"  → staff creators found for {filled} orders")
+        pi = orders_conn.get("pageInfo") or {}
+        if not pi.get("hasNextPage"):
+            break
+        cursor = pi.get("endCursor")
+        time.sleep(0.25)
+
+    filled = sum(1 for v in out.values() if v.get("order_staff_name"))
+    unique_staff = sorted({v.get("order_staff_name") for v in out.values() if v.get("order_staff_name")})
+    print(f"  → scanned {scanned} orders | staffMember found on {filled} keys | staff: {', '.join(unique_staff[:10]) or 'none'}")
     return out
 
 def fetch_product_map():
@@ -518,29 +538,28 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
         customer_name, customer_email = customer_identity(order)
         oid_str = str(order.get("id") or "")
 
-        # GraphQL staffMember is used only as fallback/enrichment.
-        # ShopifyQL orders.staff_member is the Staff tab source of truth.
-        staff_meta = order_staff_map.get(oid_str, {})
+        # Staff report must use Shopify GraphQL Order.staffMember, not customer.
+        # Customer is only context in the detail table.
+        staff_meta = find_order_meta(order, order_staff_map) or order_staff_map.get(oid_str, {})
         ql_staff_meta = find_order_meta(order, shopifyql_staff_order_map)
 
-        order_staff_name = (staff_meta.get("order_staff_name") or "").strip()
+        order_staff_name = (staff_meta.get("order_staff_name") or staff_meta.get("staff_member") or "").strip()
         order_staff_email = (staff_meta.get("order_staff_email") or "").strip()
         order_staff_member_id = staff_meta.get("order_staff_member_id") or ""
 
+        # Kept only for backwards compatibility if an older sheet/query is used.
         shopifyql_staff_member = (ql_staff_meta.get("staff_member") or "").strip()
         shopifyql_order_id = ql_staff_meta.get("shopifyql_order_id", "")
         shopifyql_total_price = ql_staff_meta.get("shopifyql_total_price", "")
         shopifyql_discount_amount = ql_staff_meta.get("shopifyql_discount_amount", "")
 
-        # IMPORTANT: Staff report must not group by customer.
-        # Customer is only context; the accountable person is staff_member.
-        staff_person_name = shopifyql_staff_member or order_staff_name or "Unknown"
+        # Priority: GraphQL Order.staffMember → ShopifyQL fallback → Unknown.
+        staff_person_name = order_staff_name or shopifyql_staff_member or "Unknown"
         staff_person_email = order_staff_email or ""
 
-        # If ShopifyQL returned staff orders, use that list. If ShopifyQL is
-        # unavailable/empty, fall back to the original employee/internal tags so
-        # the export does not go blank.
-        staff_flag = bool(ql_staff_meta) or (not shopifyql_staff_order_map and (category == "Internal / Staff" or is_staff_tag(tags_str)))
+        # Staff audit rows are still limited to internal/employee tagged orders.
+        # The responsible staff person comes from Order.staffMember.
+        staff_flag = (category == "Internal / Staff" or is_staff_tag(tags_str) or bool(ql_staff_meta))
         is_refund = (order.get("financial_status") or "").startswith("refund")
 
         line_items = order.get("line_items", []) or []
@@ -626,7 +645,7 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
                 "order_staff_member_id": order_staff_member_id,
                 "order_staff_name": order_staff_name,
                 "order_staff_email": order_staff_email,
-                "staff_member": shopifyql_staff_member,
+                "staff_member": staff_person_name if staff_person_name != "Unknown" else "",
                 "shopifyql_order_id": shopifyql_order_id,
                 "shopifyql_total_price": shopifyql_total_price,
                 "shopifyql_discount_amount": shopifyql_discount_amount,
@@ -928,14 +947,16 @@ def main():
     now   = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
 
     print(f"\n{'='*60}")
-    print(f"  CORRO QUARTERLY REPORT v2.5 — {label}")
+    print(f"  CORRO QUARTERLY REPORT v2.6 — {label}")
     print(f"  {start} → {end} | Months: {', '.join(mnames)}")
     print(f"{'='*60}\n")
 
     vmap, all_pids = fetch_product_map()
     orders         = fetch_orders(start, end)
-    order_staff_map= fetch_order_staff_map([o.get("id") for o in orders])
-    staff_ql_map   = fetch_shopifyql_staff_orders(start, end)
+    order_staff_map= fetch_order_staff_map(start, end)
+    # Staff person comes from GraphQL Order.staffMember. ShopifyQL staff lookup is kept
+    # disabled here because customer/tag data must not override staffMember.
+    staff_ql_map   = {}
     sq_map         = fetch_shopifyql(start, end)
     sq_sku_map     = fetch_shopifyql_sku(start, end)
     sku_agg, disc_zero_rows, staff_rows, all_line_rows = aggregate(orders, vmap, months, order_staff_map, staff_ql_map)
