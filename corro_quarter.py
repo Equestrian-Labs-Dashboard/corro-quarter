@@ -1,5 +1,5 @@
 """
-CORRO QUARTERLY REPORT — v2.7
+CORRO QUARTERLY REPORT — v2.8
 ==============================
 Generates Corro's quarterly report from the Shopify API.
 This script is ONLY for the Quarter Report / Quarterly Dashboard.
@@ -328,6 +328,108 @@ def fetch_order_staff_map(start, end):
     print(f"  → scanned {scanned} orders | createdBy/staff found on {filled} keys | staff: {', '.join(unique_staff[:10]) or 'none'}")
     return out
 
+
+
+def fetch_order_creators_for_rest_orders(orders):
+    """Fetch Order.createdBy for the exact REST orders already loaded.
+
+    This is the reliable Staff source because it does NOT depend on customer,
+    ShopifyQL grouping, or a separate paginated date search. We build the
+    GraphQL GID from each REST order id and ask Shopify for the same fields the
+    store confirmed work:
+
+      name
+      createdBy { name email }
+      note
+      tags
+      customer { firstName lastName email }
+
+    Result is keyed by REST id, REST name (#152362), GraphQL id and GraphQL
+    name, so the later line-item aggregation always matches the creator.
+    """
+    print("  Fetching staff creators via GraphQL nodes(ids) using Order.createdBy...")
+    out = {}
+    order_list = [o for o in (orders or []) if o.get("id")]
+    if not order_list:
+        return out
+
+    QUERY = """
+    query($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Order {
+          id
+          name
+          createdAt
+          createdBy {
+            name
+            email
+          }
+          note
+          tags
+          customer {
+            firstName
+            lastName
+            email
+          }
+        }
+      }
+    }"""
+
+    scanned = 0
+    found = 0
+    for batch in chunks(order_list, 75):
+        ids = [f"gid://shopify/Order/{o.get('id')}" for o in batch]
+        try:
+            d = shopify_graphql(QUERY, {"ids": ids})
+        except Exception as e:
+            print(f"  ⚠ createdBy nodes lookup failed on batch: {e}")
+            continue
+
+        if d.get("errors"):
+            print("  ⚠ createdBy nodes query returned errors")
+            print(f"    errors: {d.get('errors')}")
+            continue
+
+        nodes = (d.get("data") or {}).get("nodes") or []
+        # Shopify nodes(ids) preserves order; if any node is null, keep the REST
+        # order paired by index so we can still key/debug correctly.
+        for rest_order, node in zip(batch, nodes):
+            scanned += 1
+            node = node or {}
+            cb = node.get("createdBy") or {}
+            created_by_name = (cb.get("name") or "").strip()
+            created_by_email = (cb.get("email") or "").strip()
+            if created_by_name:
+                found += 1
+
+            meta = {
+                "order_staff_member_id": "",
+                "order_staff_name": created_by_name,
+                "order_staff_email": created_by_email,
+                "created_by_name": created_by_name,
+                "created_by_email": created_by_email,
+                "staff_member": created_by_name,
+                "staff_source": "GraphQL Order.createdBy via nodes(ids)" if created_by_name else "GraphQL Order.createdBy empty",
+                "graphql_order_id": node.get("id", ""),
+                "graphql_order_name": node.get("name", ""),
+            }
+
+            # Key by every version we may see later: REST numeric id, REST name,
+            # GraphQL gid, GraphQL order name.
+            for raw in (
+                rest_order.get("id", ""),
+                rest_order.get("name", ""),
+                node.get("id", ""),
+                node.get("name", ""),
+            ):
+                for key in order_lookup_keys(raw):
+                    out[key] = meta
+        time.sleep(0.2)
+
+    unique_staff = sorted({v.get("created_by_name") for v in out.values() if v.get("created_by_name")})
+    print(f"  → creator lookup: {scanned} REST orders checked | {found} orders with createdBy | staff: {', '.join(unique_staff[:12]) or 'none'}")
+    return out
+
 def fetch_product_map():
     print("  Fetching product catalogue + COGS via GraphQL...")
     QUERY = """
@@ -602,7 +704,7 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
         customer_name, customer_email = customer_identity(order)
         oid_str = str(order.get("id") or "")
 
-        # Staff report must use Shopify GraphQL Order.createdBy, not customer.
+        # Staff report must use Shopify GraphQL Order.createdBy from the exact order id, not customer.
         # Customer is only context in the detail table.
         staff_meta = find_order_meta(order, order_staff_map) or order_staff_map.get(oid_str, {})
         ql_staff_meta = find_order_meta(order, shopifyql_staff_order_map)
@@ -620,8 +722,8 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
         shopifyql_total_price = ql_staff_meta.get("shopifyql_total_price", "")
         shopifyql_discount_amount = ql_staff_meta.get("shopifyql_discount_amount", "")
 
-        # Priority: GraphQL Order.createdBy → staffMember fallback → ShopifyQL fallback → Unknown.
-        staff_person_name = order_staff_name or shopifyql_staff_member or "Unknown"
+        # Priority: GraphQL Order.createdBy only. Do NOT fallback to customer.
+        staff_person_name = order_staff_name or "Unknown"
         staff_person_email = order_staff_email or ""
 
         # Staff audit rows are still limited to internal/employee tagged orders.
@@ -1017,15 +1119,14 @@ def main():
     now   = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
 
     print(f"\n{'='*60}")
-    print(f"  CORRO QUARTERLY REPORT v2.7 — {label}")
+    print(f"  CORRO QUARTERLY REPORT v2.8 — {label}")
     print(f"  {start} → {end} | Months: {', '.join(mnames)}")
     print(f"{'='*60}\n")
 
     vmap, all_pids = fetch_product_map()
     orders         = fetch_orders(start, end)
-    order_staff_map= fetch_order_staff_map(start, end)
-    # Staff person comes from GraphQL Order.createdBy. ShopifyQL staff lookup is kept
-    # disabled here because customer/tag data must not override createdBy.
+    order_staff_map= fetch_order_creators_for_rest_orders(orders)
+    # Staff person comes ONLY from GraphQL Order.createdBy. Customer remains context only.
     staff_ql_map   = {}
     sq_map         = fetch_shopifyql(start, end)
     sq_sku_map     = fetch_shopifyql_sku(start, end)
