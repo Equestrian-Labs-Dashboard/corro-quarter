@@ -557,7 +557,7 @@ let cache={};
 
 // ── Cost Zero state ──
 let _czRows=[];          // q_cost_zero rows
-let _czDetailRows=[];    // q_discount_zero_detail rows (used to find orders for cost-zero products)
+let _czDetailRows=[];    // q_cost_zero_detail rows (real orders for cost-zero products)
 let _czActiveProd="";
 let _czFilteredDetail=[];
 
@@ -573,6 +573,7 @@ const G=id=>document.getElementById(id);
 const f$=v=>{const n=parseFloat(v)||0;const neg=n<0;const a=Math.abs(n);let s;if(a>=1e6)s="$"+(a/1e6).toFixed(2)+"M";else if(a>=1000)s="$"+(a/1000).toFixed(1)+"K";else s="$"+Math.round(a).toLocaleString();return neg?"-"+s:s;};
 const fN=v=>{const n=parseInt(v)||0;return n>=1000?(n/1000).toFixed(1)+"K":n.toLocaleString();};
 const fM=v=>{const n=parseFloat(v)||0;return(n*100).toFixed(1)+"%";};
+const nval=(r,...keys)=>{for(const k of keys){if(r&&r[k]!==undefined&&r[k]!==null&&r[k]!==""){return parseFloat(r[k])||0;}}return 0;};
 const gC=v=>{const n=parseFloat(v)||0;return n<0?"#F87171":n<0.12?"var(--gold2)":"var(--green3)";};
 const getSfx=()=>`${G("sq").value}_${G("sy").value}`;
 const getLbl=()=>{const q=G("sq").value,y=G("sy").value;const m={q1:"Jan–Mar",q2:"Apr–Jun",q3:"Jul–Sep",q4:"Oct–Dec"};return`${q.toUpperCase()} ${y} · ${m[q]}`;};
@@ -639,9 +640,10 @@ function rSummary(rows){
   const el=G("mg");el.innerHTML="";
   monthKeys.forEach(m=>{
     const card=document.createElement("div");card.className="mc";
-    const mgs=parseFloat(get("Gross Sales",m))||0,mns=parseFloat(get("Net Sales",m))||0,mgp=parseFloat(get("Gross Profit",m))||0,mu=parseInt(get("Units Sold",m))||0;
+    const mgs=parseFloat(get("Gross Sales",m))||0,mdisc=parseFloat(get("Discounts",m))||0,mns=parseFloat(get("Net Sales",m))||0,mgp=parseFloat(get("Gross Profit",m))||0,mu=parseInt(get("Units Sold",m))||0;
     card.innerHTML=`<div class="mn">${m}</div>
       <div class="mr"><span>Gross Sales</span><span>${f$(mgs)}</span></div>
+      <div class="mr"><span>Discounts</span><span style="color:#F87171">${f$(Math.abs(mdisc))}</span></div>
       <div class="mr"><span>Net Sales</span><span>${f$(mns)}</span></div>
       <div class="mr"><span>Gross Profit</span><span style="color:var(--green3)">${f$(mgp)}</span></div>
       <div class="mr"><span>Units</span><span>${fN(mu)}</span></div>
@@ -805,17 +807,14 @@ function rVendors(rows){
 }
 
 // ════════════════════════════════════════════════════════════════
-// COST ZERO — now uses q_discount_zero_detail as order source
+// COST ZERO — uses q_cost_zero_detail as order source
 // ════════════════════════════════════════════════════════════════
 
 function rCostZero(czRows, detailRows){
   _czRows = czRows || [];
-  // Filter detail rows to only those from products with COGS = 0 in the czRows list
+  // q_cost_zero_detail already contains real Shopify order lines for Cost Zero products.
+  // Keep a product-title safety filter in case old/extra rows are present in the sheet.
   const czProductTitles = new Set(_czRows.map(r=>(r.product_title||"").toLowerCase().trim()));
-  // We use ALL detail rows — the python script writes them from actual order line items.
-  // For cost-zero products, we want to show orders where the product appears
-  // regardless of whether discount was 100% (they might have paid something).
-  // So we pull from the full detail sheet but filter by product title match.
   _czDetailRows = (detailRows || []).filter(r=>{
     const t = (r.product_title||"").toLowerCase().trim();
     return czProductTitles.has(t);
@@ -833,8 +832,10 @@ function rCostZero(czRows, detailRows){
   const totU  = _czRows.reduce((a,r)=>a+(parseInt(r.units)||0),0);
   const totGS  = _czRows.reduce((a,r)=>a+(parseFloat(r.gross_sales)||0),0);
   const totGP  = _czRows.reduce((a,r)=>a+(parseFloat(r.gross_profit)||0),0);
-  const totO   = _czRows.reduce((a,r)=>a+(parseInt(r.orders)||0),0);
-  const totDisc= _czRows.reduce((a,r)=>a+(parseFloat(r.discounts||r.discount||0)),0);
+  const totO   = _czDetailRows.length
+    ? new Set(_czDetailRows.map(r=>r.order_name).filter(Boolean)).size
+    : _czRows.reduce((a,r)=>a+(parseInt(r.orders)||0),0);
+  const totDisc= _czRows.reduce((a,r)=>a+nval(r,"discounts","discount"),0);
 
   G("cz-tot-prods").textContent  = _czRows.length;
   G("cz-tot-gs").textContent     = f$(totGS);
@@ -849,8 +850,10 @@ function rCostZero(czRows, detailRows){
 
   _czRows.forEach(r=>{
     const gs   = parseFloat(r.gross_sales)||0;
-    const disc = parseFloat(r.discounts||r.discount||0);
-    const orderCount = _czDetailRows.filter(d=>(d.product_title||"").toLowerCase().trim()===(r.product_title||"").toLowerCase().trim()).length;
+    const disc = nval(r,"discounts","discount");
+    const matchingRows = _czDetailRows.filter(d=>(d.product_title||"").toLowerCase().trim()===(r.product_title||"").toLowerCase().trim());
+    const orderCount = new Set(matchingRows.map(d=>d.order_name).filter(Boolean)).size;
+    const lineCount = matchingRows.length;
     const card = document.createElement("div");
     card.className = "zc";
     card.dataset.prod = r.product_title||"";
@@ -862,7 +865,7 @@ function rCostZero(czRows, detailRows){
       <div class="zc-row"><span>Gross Sales</span><span style="color:var(--green3)">${f$(gs)}</span></div>
       <div class="zc-row"><span>Discounts</span><span style="color:${disc>0?"#F87171":"var(--tx3)"}">${disc>0?f$(Math.abs(disc)):"—"}</span></div>
       <div class="zc-row"><span>COGS</span><span style="color:#F87171">$0 ⚠</span></div>
-      <div class="zc-row"><span>Detail rows</span><span style="color:var(--gold2)">${orderCount} lines</span></div>`;
+      <div class="zc-row"><span>Detail orders</span><span style="color:var(--gold2)">${orderCount} orders · ${lineCount} lines</span></div>`;
     card.addEventListener("click",()=>{
       _czActiveProd = (_czActiveProd===r.product_title) ? "" : r.product_title;
       document.querySelectorAll("#cz-prod-list .zc").forEach(c=>c.classList.toggle("active",!!_czActiveProd&&c.dataset.prod===_czActiveProd));
@@ -917,20 +920,20 @@ function renderCzDetail(){
     const titleMatch = (r.product_title||"").toLowerCase().trim() === _czActiveProd.toLowerCase().trim();
     if(!titleMatch) return false;
     if(!search) return true;
-    return (r.order_name+r.customer_name+r.customer_email+r.sku+r.tags+"").toLowerCase().includes(search);
+    return ((r.order_name||"")+(r.customer_name||"")+(r.customer_email||"")+(r.sku||"")+(r.vendor||"")+(r.tags||"")).toLowerCase().includes(search);
   });
 
   cnt.textContent = `${prodRows.length} order line${prodRows.length!==1?"s":""}`;
 
   if(!prodRows.length){
-    el.innerHTML=`<div class="empty">No order detail found for this product in the detail sheet.<br><small style="color:var(--tx3)">It may appear only in q_cost_zero but not q_discount_zero_detail (not a 100%-discount product).</small></div>`;
+    el.innerHTML=`<div class="empty">No order detail found for this product in q_cost_zero_detail.<br><small style="color:var(--tx3)">Run the updated Python script first so the new detail sheet is generated.</small></div>`;
     return;
   }
 
   // Aggregate quick KPIs for this product from detail rows
-  const totalGS  = prodRows.reduce((a,r)=>a+(parseFloat(r.gross_sales||r.original_price)||0),0);
-  const totalDisc= prodRows.reduce((a,r)=>a+(parseFloat(r.discount)||0),0);
-  const totalNet = prodRows.reduce((a,r)=>a+(parseFloat(r.net_paid)||0),0);
+  const totalGS  = prodRows.reduce((a,r)=>a+nval(r,"gross_sales","original_price"),0);
+  const totalDisc= prodRows.reduce((a,r)=>a+nval(r,"discount","discounts"),0);
+  const totalNet = prodRows.reduce((a,r)=>a+nval(r,"net_paid","net_sales"),0);
   const totalUnits= prodRows.reduce((a,r)=>a+(parseInt(r.units)||0),0);
   const uniqueOrders = new Set(prodRows.map(r=>r.order_name)).size;
   const uniqueCustomers = new Set(prodRows.map(r=>r.customer_email||r.customer_name).filter(Boolean)).size;
@@ -967,9 +970,10 @@ function renderCzDetail(){
       </tr></thead>
       <tbody>
       ${prodRows.map(r=>{
-        const gross = parseFloat(r.gross_sales||r.original_price||0)||0;
-        const disc  = parseFloat(r.discount)||0;
-        const net   = parseFloat(r.net_paid)||0;
+        const gross = nval(r,"gross_sales","original_price");
+        const disc  = nval(r,"discount","discounts");
+        const net   = nval(r,"net_paid","net_sales");
+        const cogs  = nval(r,"cogs");
         const discPct = r.discount_pct!==undefined&&r.discount_pct!==""
           ? fM(r.discount_pct)
           : (gross>0 ? fM(disc/gross) : "—");
@@ -987,7 +991,7 @@ function renderCzDetail(){
           <td class="r" style="color:#F87171">${f$(disc)}</td>
           <td class="r" style="color:${isFullDisc?"#F87171":"var(--tx3)"}">${discPct}</td>
           <td class="r" style="color:${net<=0.01?"var(--tx3)":"var(--green3)"}">${f$(net)}</td>
-          <td class="r" style="color:#F87171">$0 ⚠</td>
+          <td class="r" style="color:${cogs<=0.01?"#F87171":"var(--gold2)"}">${cogs<=0.01?"$0 ⚠":f$(cogs)}</td>
           <td class="r" style="color:var(--gold2)">${f$(r.shipping_paid)}</td>
           <td style="font-size:10px"><span style="color:${r.category&&r.category!=="Other"?"var(--green3)":"var(--tx3)"}">${r.category||"—"}</span></td>
           <td style="font-size:9px;color:var(--tx3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.tags||""}">${(r.tags||"—").slice(0,40)}</td>
@@ -1339,11 +1343,12 @@ async function render(){
     `q_top_dropship_${sfx}`,`q_top_margin_${sfx}`,`q_top_gp_${sfx}`,
     `q_monthly_breakdown_${sfx}`,`q_vendors_${sfx}`,
     `q_cost_zero_${sfx}`,
-    `q_discount_zero_detail_${sfx}`,  // used for BOTH cost-zero order detail AND disc-zero
+    `q_cost_zero_detail_${sfx}`,
+    `q_discount_zero_detail_${sfx}`,
     `q_staff_orders_${sfx}`,
     `q_zero_sales_${sfx}`,
   ];
-  const [sum,prod,sku,drop,margin,gp,monthly,vend,cz,dzd,staff,ns]=await Promise.all(tabs.map(ft));
+  const [sum,prod,sku,drop,margin,gp,monthly,vend,cz,czd,dzd,staff,ns]=await Promise.all(tabs.map(ft));
 
   rSummary(sum);
   mkProdTable(prod,"t-products","n-products","fs-products","fi-products");
@@ -1353,9 +1358,9 @@ async function render(){
   mkProdTable(gp,"t-gp","n-gp",null,null);
   rMonthly(monthly);
   rVendors(vend);
-  // Cost Zero: pass q_cost_zero rows + q_discount_zero_detail for order lookup
-  rCostZero(cz, dzd);
-  // Disc Zero: pass the same detail rows (they already have category field)
+  // Cost Zero: pass q_cost_zero rows + q_cost_zero_detail for real order lookup
+  rCostZero(cz, czd);
+  // 100% Discount keeps using q_discount_zero_detail only
   rDiscZero(null, dzd);
   rStaff(staff);
   rNoSales(ns);
