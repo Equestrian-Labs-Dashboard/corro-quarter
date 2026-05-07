@@ -1,5 +1,5 @@
 """
-CORRO QUARTERLY REPORT — v2.4
+CORRO QUARTERLY REPORT — v2.5
 ==============================
 Generates Corro's quarterly report from the Shopify API.
 This script is ONLY for the Quarter Report / Quarterly Dashboard.
@@ -61,6 +61,10 @@ DISC_ZERO_CATS = [
     ("Internal / Staff", ["staff","internal","employee"]),
     ("Elite Cart Gift",  ["elite cart","elite_cart","elitecart"]),
 ]
+
+# Staff audit source of truth. Shopify recommended querying orders by tag and
+# reading staff_member from ShopifyQL instead of grouping by customer.
+STAFF_ORDER_TAG = os.environ.get("STAFF_ORDER_TAG", "employee order")
 def classify_disc_zero(tags_str):
     t = (tags_str or "").lower()
     for cat, kws in DISC_ZERO_CATS:
@@ -308,6 +312,39 @@ def row_int(row, *names):
     except (TypeError, ValueError):
         return 0
 
+def order_lookup_keys(value):
+    """Build safe matching keys for Shopify REST/GraphQL/ShopifyQL order ids.
+
+    Shopify surfaces orders differently depending on API/reporting context:
+    REST uses numeric id + name (#152362), while ShopifyQL order_id can be
+    returned as a number, a name, or a gid-like value depending on the report.
+    """
+    raw = str(value or "").strip()
+    keys = set()
+    if not raw:
+        return keys
+    keys.add(raw)
+    keys.add(raw.lstrip("#"))
+    if raw.startswith("gid://") or "/" in raw:
+        last = raw.rstrip("/").split("/")[-1]
+        if last:
+            keys.add(last)
+            keys.add(f"#{last}")
+    if raw.isdigit():
+        keys.add(f"#{raw}")
+    return {k for k in keys if k}
+
+def find_order_meta(order, meta_map):
+    if not meta_map:
+        return {}
+    candidates = set()
+    for field in ("id", "name", "order_number", "number"):
+        candidates |= order_lookup_keys(order.get(field))
+    for key in candidates:
+        if key in meta_map:
+            return meta_map[key]
+    return {}
+
 def shopifyql_table(query, label):
     """Run a ShopifyQL query and return normalized row dictionaries."""
     print(f"  Fetching ShopifyQL {label}...")
@@ -400,6 +437,45 @@ def fetch_shopifyql_sku(start, end):
         }
     return result
 
+def fetch_shopifyql_staff_orders(start, end, tag=STAFF_ORDER_TAG):
+    """Fetch staff/internal orders from ShopifyQL using order_tags + staff_member.
+
+    This is the source of truth for the Staff tab. It intentionally does not use
+    the customer as the staff/person key. Customer remains available only as
+    audit context in the detail rows.
+    """
+    safe_tag = str(tag or "employee order").replace("'", "\'")
+    q = (
+        f"FROM orders "
+        f"SHOW order_id, total_price, discount_amount, staff_member "
+        f"WHERE order_tags CONTAINS '{safe_tag}' "
+        f"SINCE {start} UNTIL {end} "
+        f"ORDER BY total_price DESC"
+    )
+    rows = shopifyql_table(q, f"staff orders by tag '{tag}'")
+
+    result = {}
+    for row in rows:
+        order_id = str(row_value(row, "order_id", "Order ID", "order", "Order", default="") or "").strip()
+        staff_member = str(row_value(row, "staff_member", "Staff member", "staff", default="") or "").strip()
+        total_price = row_float(row, "total_price", "Total price")
+        discount_amount = row_float(row, "discount_amount", "Discount amount")
+        meta = {
+            "shopifyql_order_id": order_id,
+            "staff_member": staff_member,
+            "staff_person_name": staff_member or "Unknown",
+            "shopifyql_total_price": total_price,
+            "shopifyql_discount_amount": discount_amount,
+            "shopifyql_staff_source": "ShopifyQL orders.staff_member",
+        }
+        for key in order_lookup_keys(order_id):
+            result[key] = meta
+
+    filled = sum(1 for v in result.values() if v.get("staff_member"))
+    print(f"  → ShopifyQL staff orders mapped: {len(rows)} rows | {filled} staff keys")
+    return result
+
+
 # ── AGGREGATE ─────────────────────────────────────────────────────
 def mk_sku_row(info, months):
     return {
@@ -418,7 +494,7 @@ def mk_sku_row(info, months):
         } for m in months},
     }
 
-def aggregate(orders, vmap, months, order_staff_map=None):
+def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_map=None):
     """Returns SKU aggregates, all order line rows, 100% discount rows, and staff/internal audit rows.
 
     Important:
@@ -428,6 +504,7 @@ def aggregate(orders, vmap, months, order_staff_map=None):
       at least COGS + 10% and whether shipping was paid.
     """
     order_staff_map = order_staff_map or {}
+    shopifyql_staff_order_map = shopifyql_staff_order_map or {}
     sku_agg = {}
     all_line_rows = []
     disc_zero_rows = []
@@ -437,16 +514,33 @@ def aggregate(orders, vmap, months, order_staff_map=None):
         om = int((order.get("created_at", "")[:7]).split("-")[-1] or 0)
         tags_str = order.get("tags") or ""
         category = classify_disc_zero(tags_str)
-        staff_flag = category == "Internal / Staff" or is_staff_tag(tags_str)
         shipping_paid = order_shipping_paid(order)
         customer_name, customer_email = customer_identity(order)
         oid_str = str(order.get("id") or "")
+
+        # GraphQL staffMember is used only as fallback/enrichment.
+        # ShopifyQL orders.staff_member is the Staff tab source of truth.
         staff_meta = order_staff_map.get(oid_str, {})
+        ql_staff_meta = find_order_meta(order, shopifyql_staff_order_map)
+
         order_staff_name = (staff_meta.get("order_staff_name") or "").strip()
         order_staff_email = (staff_meta.get("order_staff_email") or "").strip()
         order_staff_member_id = staff_meta.get("order_staff_member_id") or ""
-        staff_person_name = customer_name or order_staff_name or "Unknown"
-        staff_person_email = customer_email or order_staff_email or ""
+
+        shopifyql_staff_member = (ql_staff_meta.get("staff_member") or "").strip()
+        shopifyql_order_id = ql_staff_meta.get("shopifyql_order_id", "")
+        shopifyql_total_price = ql_staff_meta.get("shopifyql_total_price", "")
+        shopifyql_discount_amount = ql_staff_meta.get("shopifyql_discount_amount", "")
+
+        # IMPORTANT: Staff report must not group by customer.
+        # Customer is only context; the accountable person is staff_member.
+        staff_person_name = shopifyql_staff_member or order_staff_name or "Unknown"
+        staff_person_email = order_staff_email or ""
+
+        # If ShopifyQL returned staff orders, use that list. If ShopifyQL is
+        # unavailable/empty, fall back to the original employee/internal tags so
+        # the export does not go blank.
+        staff_flag = bool(ql_staff_meta) or (not shopifyql_staff_order_map and (category == "Internal / Staff" or is_staff_tag(tags_str)))
         is_refund = (order.get("financial_status") or "").startswith("refund")
 
         line_items = order.get("line_items", []) or []
@@ -532,6 +626,10 @@ def aggregate(orders, vmap, months, order_staff_map=None):
                 "order_staff_member_id": order_staff_member_id,
                 "order_staff_name": order_staff_name,
                 "order_staff_email": order_staff_email,
+                "staff_member": shopifyql_staff_member,
+                "shopifyql_order_id": shopifyql_order_id,
+                "shopifyql_total_price": shopifyql_total_price,
+                "shopifyql_discount_amount": shopifyql_discount_amount,
                 "staff_person_name": staff_person_name,
                 "staff_person_email": staff_person_email,
             }
@@ -830,16 +928,17 @@ def main():
     now   = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
 
     print(f"\n{'='*60}")
-    print(f"  CORRO QUARTERLY REPORT v2.4 — {label}")
+    print(f"  CORRO QUARTERLY REPORT v2.5 — {label}")
     print(f"  {start} → {end} | Months: {', '.join(mnames)}")
     print(f"{'='*60}\n")
 
     vmap, all_pids = fetch_product_map()
     orders         = fetch_orders(start, end)
     order_staff_map= fetch_order_staff_map([o.get("id") for o in orders])
+    staff_ql_map   = fetch_shopifyql_staff_orders(start, end)
     sq_map         = fetch_shopifyql(start, end)
     sq_sku_map     = fetch_shopifyql_sku(start, end)
-    sku_agg, disc_zero_rows, staff_rows, all_line_rows = aggregate(orders, vmap, months, order_staff_map)
+    sku_agg, disc_zero_rows, staff_rows, all_line_rows = aggregate(orders, vmap, months, order_staff_map, staff_ql_map)
     sku_exact_rows = build_exact_sku_rows(sku_agg, sq_sku_map, vmap, months)
     prod_agg       = build_product_agg(sku_agg, sq_map, months)
     vendor_agg     = build_vendor_agg(prod_agg)
@@ -1040,15 +1139,19 @@ def main():
 
     # ── 8b. STAFF / INTERNAL AUDIT ────────────────────────────────
     h_staff = ["updated_at","quarter","order_name","created_at","month",
-               "staff_person_name","staff_person_email","customer_name","customer_email",
+               "staff_member","staff_person_name","staff_person_email",
+               "customer_name","customer_email",
                "order_staff_name","order_staff_email","source_name",
+               "shopifyql_order_id","shopifyql_total_price","shopifyql_discount_amount",
                "category","tags","product_title","sku","vendor","product_type","is_dropship",
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                "expected_item_payment","payment_gap","gross_profit","shipping_paid"]
     write_tab(sh, f"q_staff_orders_{sfx}", h_staff,
               [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month",
-               "staff_person_name","staff_person_email","customer_name","customer_email",
+               "staff_member","staff_person_name","staff_person_email",
+               "customer_name","customer_email",
                "order_staff_name","order_staff_email","source_name",
+               "shopifyql_order_id","shopifyql_total_price","shopifyql_discount_amount",
                "category","tags","product_title","sku","vendor","product_type","is_dropship",
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                "expected_item_payment","payment_gap","gross_profit","shipping_paid"]]
