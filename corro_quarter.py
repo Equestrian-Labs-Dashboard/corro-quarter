@@ -1,5 +1,5 @@
 """
-CORRO QUARTERLY REPORT — v2.3
+CORRO QUARTERLY REPORT — v2.4
 ==============================
 Generates Corro's quarterly report from the Shopify API.
 This script is ONLY for the Quarter Report / Quarterly Dashboard.
@@ -176,6 +176,69 @@ def fetch_orders(start, end):
                 seen.add(oid); all_orders.append(o)
     print(f"  → {len(all_orders)} unique orders")
     return all_orders
+
+
+def chunks(seq, size):
+    for i in range(0, len(seq), size):
+        yield seq[i:i+size]
+
+def fetch_order_staff_map(order_ids):
+    """Return Shopify staff member / creator info by numeric order id.
+
+    Shopify exposes Order.staffMember in GraphQL for orders that have a
+    staff/POS creator and when the access token has permission. If the token
+    cannot read this field, the report still runs and the creator columns stay
+    blank instead of breaking the quarter export.
+    """
+    ids = [str(x) for x in order_ids if x]
+    if not ids:
+        return {}
+
+    print("  Fetching order staff creators via GraphQL...")
+    out = {}
+    QUERY = """
+    query($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Order {
+          id
+          name
+          staffMember {
+            id
+            name
+            email
+          }
+        }
+      }
+    }"""
+
+    for batch in chunks(ids, 100):
+        gql_ids = [f"gid://shopify/Order/{oid}" for oid in batch]
+        try:
+            d = shopify_graphql(QUERY, {"ids": gql_ids})
+        except Exception as e:
+            print(f"  ⚠ staffMember lookup failed: {e}")
+            return out
+
+        if d.get("errors"):
+            print("  ⚠ staffMember unavailable — leaving created_by fields blank")
+            # Common when the app/token lacks read_users or store plan access.
+            return out
+
+        for node in ((d.get("data") or {}).get("nodes") or []):
+            if not node:
+                continue
+            oid = str(node.get("id", "")).split("/")[-1]
+            sm = node.get("staffMember") or {}
+            out[oid] = {
+                "order_staff_member_id": str(sm.get("id", "")).split("/")[-1] if sm.get("id") else "",
+                "order_staff_name": sm.get("name") or "",
+                "order_staff_email": sm.get("email") or "",
+            }
+        time.sleep(0.2)
+
+    filled = sum(1 for v in out.values() if v.get("order_staff_name") or v.get("order_staff_email"))
+    print(f"  → staff creators found for {filled} orders")
+    return out
 
 def fetch_product_map():
     print("  Fetching product catalogue + COGS via GraphQL...")
@@ -355,7 +418,7 @@ def mk_sku_row(info, months):
         } for m in months},
     }
 
-def aggregate(orders, vmap, months):
+def aggregate(orders, vmap, months, order_staff_map=None):
     """Returns SKU aggregates, all order line rows, 100% discount rows, and staff/internal audit rows.
 
     Important:
@@ -364,6 +427,7 @@ def aggregate(orders, vmap, months):
       the staff member paid something. This is required to audit whether they paid
       at least COGS + 10% and whether shipping was paid.
     """
+    order_staff_map = order_staff_map or {}
     sku_agg = {}
     all_line_rows = []
     disc_zero_rows = []
@@ -376,6 +440,13 @@ def aggregate(orders, vmap, months):
         staff_flag = category == "Internal / Staff" or is_staff_tag(tags_str)
         shipping_paid = order_shipping_paid(order)
         customer_name, customer_email = customer_identity(order)
+        oid_str = str(order.get("id") or "")
+        staff_meta = order_staff_map.get(oid_str, {})
+        order_staff_name = (staff_meta.get("order_staff_name") or "").strip()
+        order_staff_email = (staff_meta.get("order_staff_email") or "").strip()
+        order_staff_member_id = staff_meta.get("order_staff_member_id") or ""
+        staff_person_name = customer_name or order_staff_name or "Unknown"
+        staff_person_email = customer_email or order_staff_email or ""
         is_refund = (order.get("financial_status") or "").startswith("refund")
 
         line_items = order.get("line_items", []) or []
@@ -458,6 +529,11 @@ def aggregate(orders, vmap, months):
                 "financial_status": order.get("financial_status", ""),
                 "source_name": order.get("source_name", ""),
                 "order_id": order.get("id", ""),
+                "order_staff_member_id": order_staff_member_id,
+                "order_staff_name": order_staff_name,
+                "order_staff_email": order_staff_email,
+                "staff_person_name": staff_person_name,
+                "staff_person_email": staff_person_email,
             }
             all_line_rows.append(base_audit_row)
 
@@ -612,6 +688,49 @@ def build_exact_sku_rows(sku_agg, sq_sku_map, vmap, months):
         exact_rows.append(row)
     return exact_rows
 
+
+def build_cost_zero_from_lines(all_line_rows):
+    """Build Cost Zero strictly from line items whose current unit COGS is 0.
+
+    This avoids pulling products whose product-level ShopifyQL COGS looks like 0
+    but whose actual variant Cost per item is already loaded. The Cost Zero tab
+    should only show rows that need COGS cleanup.
+    """
+    grouped = defaultdict(lambda: {
+        "product_title":"", "vendor":"", "product_type":"",
+        "gross_sales":0.0, "discounts":0.0, "net_sales":0.0,
+        "cogs":0.0, "gross_profit":0.0, "units":0, "orders":set(),
+    })
+    detail = []
+    for d in all_line_rows:
+        unit_cost = money(d.get("unit_cost"))
+        gross = money(d.get("gross_sales"))
+        units = row_int(d, "units")
+        if unit_cost > 0.0001 or gross <= 0.0001 or units <= 0:
+            continue
+        row = dict(d)
+        # Force the detail to remain audit-clean: Cost Zero means COGS really 0.
+        row["unit_cost"] = 0.0
+        row["cogs"] = 0.0
+        row["gross_profit"] = money(row.get("net_paid"))
+        detail.append(row)
+
+        key = (row.get("product_title") or "Unknown").strip().lower()
+        p = grouped[key]
+        p["product_title"] = row.get("product_title") or "Unknown"
+        p["vendor"] = p["vendor"] or row.get("vendor") or "Unknown"
+        p["product_type"] = p["product_type"] or row.get("product_type") or "Uncategorized"
+        p["gross_sales"] += gross
+        p["discounts"] += money(row.get("discount"))
+        p["net_sales"] += money(row.get("net_paid"))
+        p["cogs"] += 0.0
+        p["gross_profit"] += money(row.get("net_paid"))
+        p["units"] += units
+        if row.get("order_name"):
+            p["orders"].add(row.get("order_name"))
+
+    return list(grouped.values()), detail
+
 def build_vendor_agg(prod_agg):
     vend = defaultdict(lambda: {
         "vendor":"","skus":set(),"units":0,
@@ -711,15 +830,16 @@ def main():
     now   = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
 
     print(f"\n{'='*60}")
-    print(f"  CORRO QUARTERLY REPORT v2.3 — {label}")
+    print(f"  CORRO QUARTERLY REPORT v2.4 — {label}")
     print(f"  {start} → {end} | Months: {', '.join(mnames)}")
     print(f"{'='*60}\n")
 
     vmap, all_pids = fetch_product_map()
     orders         = fetch_orders(start, end)
+    order_staff_map= fetch_order_staff_map([o.get("id") for o in orders])
     sq_map         = fetch_shopifyql(start, end)
     sq_sku_map     = fetch_shopifyql_sku(start, end)
-    sku_agg, disc_zero_rows, staff_rows, all_line_rows = aggregate(orders, vmap, months)
+    sku_agg, disc_zero_rows, staff_rows, all_line_rows = aggregate(orders, vmap, months, order_staff_map)
     sku_exact_rows = build_exact_sku_rows(sku_agg, sq_sku_map, vmap, months)
     prod_agg       = build_product_agg(sku_agg, sq_map, months)
     vendor_agg     = build_vendor_agg(prod_agg)
@@ -842,39 +962,34 @@ def main():
     write_tab(sh, f"q_top_gp_{sfx}", h_prod,
               [prod_row(i,p) for i,p in enumerate(gp_prods[:100])])
 
-    # ── 7. COST ZERO (COGS = 0, but product sold) ─────────────────
-    cost_zero = sorted(
-        [p for p in prod_agg.values() if p["cogs"] == 0 and p["gross_sales"] > 0],
-        key=lambda x: x["gross_sales"], reverse=True)
+    # ── 7. COST ZERO (strict: actual line unit_cost / COGS = 0) ──
+    cost_zero, cost_zero_detail_rows = build_cost_zero_from_lines(all_line_rows)
+    cost_zero = sorted(cost_zero, key=lambda x: x["gross_sales"], reverse=True)
     h_cz = ["updated_at","quarter","rank","product_title","vendor","product_type",
             "units","gross_sales","discounts","net_sales","cogs","gross_profit",
             "gross_margin","orders"]
     write_tab(sh, f"q_cost_zero_{sfx}", h_cz,
               [[now,label,i+1,p["product_title"],p.get("vendor","") or "Unknown",p.get("product_type",""),
                 p["units"],round(p["gross_sales"],2),round(p["discounts"],2),round(p["net_sales"],2),
-                round(p["cogs"],2),round(p["gross_profit"],2),
+                0,round(p["gross_profit"],2),
                 round((p["gross_profit"]/p["net_sales"]),4) if p["net_sales"] else 0,
-                p.get("orders_count") or len(p["orders"])]
+                len(p["orders"])]
                for i,p in enumerate(cost_zero)])
 
     # Order-by-order detail for Cost Zero products.
-    # This is intentionally separate from q_discount_zero_detail: Cost Zero
-    # products are normal paid products whose Shopify COGS is missing, not
-    # necessarily 100%-discount/free items.
-    cost_zero_titles = {p["product_title"].strip().lower() for p in cost_zero}
-    cost_zero_detail_rows = [
-        d for d in all_line_rows
-        if (d.get("product_title", "").strip().lower() in cost_zero_titles)
-    ]
+    # Only lines with unit_cost = 0 are written here. If a product has mixed
+    # variants, loaded-cost variants are excluded from Cost Zero.
     h_cz_det = ["updated_at","quarter","order_name","created_at","month","category",
                 "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
                 "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
-                "gross_profit","shipping_paid","financial_status","source_name","order_id"]
+                "gross_profit","shipping_paid","financial_status","source_name","order_id",
+                "order_staff_name","order_staff_email"]
     write_tab(sh, f"q_cost_zero_detail_{sfx}", h_cz_det,
               [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month","category",
                "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
-               "gross_profit","shipping_paid","financial_status","source_name","order_id"]]
+               "gross_profit","shipping_paid","financial_status","source_name","order_id",
+               "order_staff_name","order_staff_email"]]
                for d in sorted(cost_zero_detail_rows, key=lambda x: (x.get("product_title", ""), x.get("created_at", "")))])
 
     # ── 8. DISCOUNT ZERO (100% discount / customer paid $0) ───────
@@ -924,12 +1039,16 @@ def main():
                for d in sorted(disc_zero_rows, key=lambda x: x["created_at"])])
 
     # ── 8b. STAFF / INTERNAL AUDIT ────────────────────────────────
-    h_staff = ["updated_at","quarter","order_name","created_at","month","customer_name","customer_email",
+    h_staff = ["updated_at","quarter","order_name","created_at","month",
+               "staff_person_name","staff_person_email","customer_name","customer_email",
+               "order_staff_name","order_staff_email","source_name",
                "category","tags","product_title","sku","vendor","product_type","is_dropship",
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                "expected_item_payment","payment_gap","gross_profit","shipping_paid"]
     write_tab(sh, f"q_staff_orders_{sfx}", h_staff,
-              [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month","customer_name","customer_email",
+              [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month",
+               "staff_person_name","staff_person_email","customer_name","customer_email",
+               "order_staff_name","order_staff_email","source_name",
                "category","tags","product_title","sku","vendor","product_type","is_dropship",
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                "expected_item_payment","payment_gap","gross_profit","shipping_paid"]]
