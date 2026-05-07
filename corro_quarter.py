@@ -1,5 +1,5 @@
 """
-CORRO QUARTERLY REPORT — v2.6
+CORRO QUARTERLY REPORT — v2.7
 ==============================
 Generates Corro's quarterly report from the Shopify API.
 This script is ONLY for the Quarter Report / Quarterly Dashboard.
@@ -63,7 +63,7 @@ DISC_ZERO_CATS = [
 ]
 
 # Staff audit source of truth. Shopify recommended querying orders by tag and
-# reading staffMember from Shopify GraphQL Order instead of grouping by customer.
+# reading Order.createdBy from Shopify GraphQL instead of grouping by customer.
 STAFF_ORDER_TAG = os.environ.get("STAFF_ORDER_TAG", "employee order")
 def classify_disc_zero(tags_str):
     t = (tags_str or "").lower()
@@ -187,20 +187,54 @@ def chunks(seq, size):
         yield seq[i:i+size]
 
 def fetch_order_staff_map(start, end):
-    """Return Shopify Order.staffMember info by order id/name for the date range.
+    """Return Shopify Order.createdBy info by order id/name for the date range.
 
-    This follows the Shopify GraphQL orders query pattern:
-    orders(query: "created_at:>=YYYY-MM-DD created_at:<=YYYY-MM-DD") {
-      node { id name createdAt staffMember { id name } }
-    }
-
-    Staff tab must use this order-level staffMember field as the responsible
-    staff person. Customer is kept only as context in the detail table.
+    Shopify confirmed that the staff responsible for these internal/POS orders
+    is in Order.createdBy { name email }, not in customer and not reliably in
+    staffMember. The Staff tab must group by createdBy. Customer remains only
+    as context in the detail table.
     """
-    print("  Fetching order staff members via GraphQL orders query...")
+    print("  Fetching order creators via GraphQL Order.createdBy query...")
     out = {}
     q = f"created_at:>={start} created_at:<={end}"
-    QUERY = """
+
+    # Main query: use createdBy as source of truth. staffMember stays only as
+    # a fallback/debug field in case Shopify returns createdBy empty on some rows.
+    QUERY_CREATED_BY = """
+    query($cursor: String, $q: String!) {
+      orders(first: 250, after: $cursor, query: $q) {
+        edges {
+          node {
+            id
+            name
+            createdAt
+            createdBy {
+              name
+              email
+            }
+            staffMember {
+              id
+              name
+            }
+            note
+            tags
+            customer {
+              firstName
+              lastName
+              email
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }"""
+
+    # Fallback only if the store/API rejects createdBy. It should not be used
+    # when createdBy is available.
+    QUERY_STAFF_MEMBER_ONLY = """
     query($cursor: String, $q: String!) {
       orders(first: 250, after: $cursor, query: $q) {
         edges {
@@ -212,6 +246,8 @@ def fetch_order_staff_map(start, end):
               id
               name
             }
+            note
+            tags
           }
         }
         pageInfo {
@@ -221,17 +257,31 @@ def fetch_order_staff_map(start, end):
       }
     }"""
 
+    query_to_use = QUERY_CREATED_BY
+    source_label = "GraphQL Order.createdBy"
     cursor = None
     scanned = 0
+    retried_without_created_by = False
+
     while True:
         try:
-            d = shopify_graphql(QUERY, {"cursor": cursor, "q": q})
+            d = shopify_graphql(query_to_use, {"cursor": cursor, "q": q})
         except Exception as e:
-            print(f"  ⚠ staffMember orders lookup failed: {e}")
+            print(f"  ⚠ createdBy orders lookup failed: {e}")
             return out
 
         if d.get("errors"):
-            print("  ⚠ staffMember unavailable — leaving staffMember fields blank")
+            if not retried_without_created_by:
+                print("  ⚠ createdBy query returned errors; retrying with staffMember-only fallback")
+                print(f"    errors: {d.get('errors')}")
+                query_to_use = QUERY_STAFF_MEMBER_ONLY
+                source_label = "GraphQL Order.staffMember fallback"
+                cursor = None
+                scanned = 0
+                out = {}
+                retried_without_created_by = True
+                continue
+            print("  ⚠ staff creator unavailable — leaving creator fields blank")
             print(f"    errors: {d.get('errors')}")
             return out
 
@@ -239,15 +289,29 @@ def fetch_order_staff_map(start, end):
         for edge in (orders_conn.get("edges") or []):
             node = edge.get("node") or {}
             scanned += 1
+
+            cb = node.get("createdBy") or {}
             sm = node.get("staffMember") or {}
-            staff_id = str(sm.get("id", "")).split("/")[-1] if sm.get("id") else ""
-            staff_name = (sm.get("name") or "").strip()
+
+            created_by_name = (cb.get("name") or "").strip()
+            created_by_email = (cb.get("email") or "").strip()
+            staff_member_id = str(sm.get("id", "")).split("/")[-1] if sm.get("id") else ""
+            staff_member_name = (sm.get("name") or "").strip()
+
+            # Source of truth: createdBy. Fallback: staffMember only if createdBy is empty.
+            responsible_name = created_by_name or staff_member_name
+            responsible_email = created_by_email
+            responsible_source = "GraphQL Order.createdBy" if created_by_name else ("GraphQL Order.staffMember fallback" if staff_member_name else "")
+
             meta = {
-                "order_staff_member_id": staff_id,
-                "order_staff_name": staff_name,
-                "order_staff_email": "",
-                "staff_member": staff_name,
-                "staff_source": "GraphQL Order.staffMember",
+                "order_staff_member_id": staff_member_id,
+                "order_staff_name": responsible_name,
+                "order_staff_email": responsible_email,
+                "created_by_name": created_by_name,
+                "created_by_email": created_by_email,
+                "staff_member": responsible_name,
+                "staff_source": responsible_source or source_label,
+                "graphql_staff_member_name": staff_member_name,
             }
             for raw in (node.get("id", ""), node.get("name", "")):
                 for key in order_lookup_keys(raw):
@@ -261,7 +325,7 @@ def fetch_order_staff_map(start, end):
 
     filled = sum(1 for v in out.values() if v.get("order_staff_name"))
     unique_staff = sorted({v.get("order_staff_name") for v in out.values() if v.get("order_staff_name")})
-    print(f"  → scanned {scanned} orders | staffMember found on {filled} keys | staff: {', '.join(unique_staff[:10]) or 'none'}")
+    print(f"  → scanned {scanned} orders | createdBy/staff found on {filled} keys | staff: {', '.join(unique_staff[:10]) or 'none'}")
     return out
 
 def fetch_product_map():
@@ -538,7 +602,7 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
         customer_name, customer_email = customer_identity(order)
         oid_str = str(order.get("id") or "")
 
-        # Staff report must use Shopify GraphQL Order.staffMember, not customer.
+        # Staff report must use Shopify GraphQL Order.createdBy, not customer.
         # Customer is only context in the detail table.
         staff_meta = find_order_meta(order, order_staff_map) or order_staff_map.get(oid_str, {})
         ql_staff_meta = find_order_meta(order, shopifyql_staff_order_map)
@@ -546,6 +610,9 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
         order_staff_name = (staff_meta.get("order_staff_name") or staff_meta.get("staff_member") or "").strip()
         order_staff_email = (staff_meta.get("order_staff_email") or "").strip()
         order_staff_member_id = staff_meta.get("order_staff_member_id") or ""
+        created_by_name = (staff_meta.get("created_by_name") or "").strip()
+        created_by_email = (staff_meta.get("created_by_email") or "").strip()
+        staff_source = (staff_meta.get("staff_source") or "").strip()
 
         # Kept only for backwards compatibility if an older sheet/query is used.
         shopifyql_staff_member = (ql_staff_meta.get("staff_member") or "").strip()
@@ -553,12 +620,12 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
         shopifyql_total_price = ql_staff_meta.get("shopifyql_total_price", "")
         shopifyql_discount_amount = ql_staff_meta.get("shopifyql_discount_amount", "")
 
-        # Priority: GraphQL Order.staffMember → ShopifyQL fallback → Unknown.
+        # Priority: GraphQL Order.createdBy → staffMember fallback → ShopifyQL fallback → Unknown.
         staff_person_name = order_staff_name or shopifyql_staff_member or "Unknown"
         staff_person_email = order_staff_email or ""
 
         # Staff audit rows are still limited to internal/employee tagged orders.
-        # The responsible staff person comes from Order.staffMember.
+        # The responsible staff person comes from Order.createdBy.
         staff_flag = (category == "Internal / Staff" or is_staff_tag(tags_str) or bool(ql_staff_meta))
         is_refund = (order.get("financial_status") or "").startswith("refund")
 
@@ -645,6 +712,9 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
                 "order_staff_member_id": order_staff_member_id,
                 "order_staff_name": order_staff_name,
                 "order_staff_email": order_staff_email,
+                "created_by_name": created_by_name,
+                "created_by_email": created_by_email,
+                "staff_source": staff_source,
                 "staff_member": staff_person_name if staff_person_name != "Unknown" else "",
                 "shopifyql_order_id": shopifyql_order_id,
                 "shopifyql_total_price": shopifyql_total_price,
@@ -947,15 +1017,15 @@ def main():
     now   = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
 
     print(f"\n{'='*60}")
-    print(f"  CORRO QUARTERLY REPORT v2.6 — {label}")
+    print(f"  CORRO QUARTERLY REPORT v2.7 — {label}")
     print(f"  {start} → {end} | Months: {', '.join(mnames)}")
     print(f"{'='*60}\n")
 
     vmap, all_pids = fetch_product_map()
     orders         = fetch_orders(start, end)
     order_staff_map= fetch_order_staff_map(start, end)
-    # Staff person comes from GraphQL Order.staffMember. ShopifyQL staff lookup is kept
-    # disabled here because customer/tag data must not override staffMember.
+    # Staff person comes from GraphQL Order.createdBy. ShopifyQL staff lookup is kept
+    # disabled here because customer/tag data must not override createdBy.
     staff_ql_map   = {}
     sq_map         = fetch_shopifyql(start, end)
     sq_sku_map     = fetch_shopifyql_sku(start, end)
@@ -1103,13 +1173,13 @@ def main():
                 "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
                 "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                 "gross_profit","shipping_paid","financial_status","source_name","order_id",
-                "order_staff_name","order_staff_email"]
+                "order_staff_name","order_staff_email","created_by_name","created_by_email","staff_source"]
     write_tab(sh, f"q_cost_zero_detail_{sfx}", h_cz_det,
               [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month","category",
                "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                "gross_profit","shipping_paid","financial_status","source_name","order_id",
-               "order_staff_name","order_staff_email"]]
+               "order_staff_name","order_staff_email","created_by_name","created_by_email","staff_source"]]
                for d in sorted(cost_zero_detail_rows, key=lambda x: (x.get("product_title", ""), x.get("created_at", "")))])
 
     # ── 8. DISCOUNT ZERO (100% discount / customer paid $0) ───────
@@ -1162,7 +1232,7 @@ def main():
     h_staff = ["updated_at","quarter","order_name","created_at","month",
                "staff_member","staff_person_name","staff_person_email",
                "customer_name","customer_email",
-               "order_staff_name","order_staff_email","source_name",
+               "order_staff_name","order_staff_email","created_by_name","created_by_email","staff_source","source_name",
                "shopifyql_order_id","shopifyql_total_price","shopifyql_discount_amount",
                "category","tags","product_title","sku","vendor","product_type","is_dropship",
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
@@ -1171,7 +1241,7 @@ def main():
               [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month",
                "staff_member","staff_person_name","staff_person_email",
                "customer_name","customer_email",
-               "order_staff_name","order_staff_email","source_name",
+               "order_staff_name","order_staff_email","created_by_name","created_by_email","staff_source","source_name",
                "shopifyql_order_id","shopifyql_total_price","shopifyql_discount_amount",
                "category","tags","product_title","sku","vendor","product_type","is_dropship",
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
