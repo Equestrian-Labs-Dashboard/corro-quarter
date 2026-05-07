@@ -1,5 +1,5 @@
 """
-CORRO QUARTERLY REPORT — v2.8
+CORRO QUARTERLY REPORT — v2.9
 ==============================
 Generates Corro's quarterly report from the Shopify API.
 This script is ONLY for the Quarter Report / Quarterly Dashboard.
@@ -63,8 +63,18 @@ DISC_ZERO_CATS = [
 ]
 
 # Staff audit source of truth. Shopify recommended querying orders by tag and
-# reading Order.createdBy from Shopify GraphQL instead of grouping by customer.
+# reading ShopifyQL orders.staff_member + manual confirmed overrides instead of grouping by customer.
 STAFF_ORDER_TAG = os.environ.get("STAFF_ORDER_TAG", "employee order")
+
+# Confirmed by Shopify / prior live queries. These overrides are intentionally
+# narrow and only apply to the known Q1 staff orders that Shopify returns as
+# creator/staff in admin but not through the Order.createdBy GraphQL field
+# available to this app token. You can extend this without code changes with:
+# STAFF_ORDER_OVERRIDES_JSON='{"#123":{"name":"Staff Name","email":"x@y.com"}}'
+DEFAULT_STAFF_ORDER_OVERRIDES = {
+    "#152088": {"name": "Jordyn Way", "email": "jway@corroshop.com", "note": "JW DISCOUNTED / employee order"},
+    "#152362": {"name": "Jordyn Way", "email": "jway@corroshop.com", "note": "employee POS order"},
+}
 def classify_disc_zero(tags_str):
     t = (tags_str or "").lower()
     for cat, kws in DISC_ZERO_CATS:
@@ -479,6 +489,19 @@ def fetch_product_map():
     print(f"  → {len(vmap)} variants | {filled} with COGS > 0")
     return vmap, all_product_ids
 
+def unwrap_cell(v):
+    """Normalize ShopifyQL table cells. Some stores/API versions return
+    primitive values, while others return objects with value/display fields.
+    """
+    if isinstance(v, dict):
+        for key in ("value", "displayValue", "formattedValue", "name", "label", "id"):
+            if key in v and v.get(key) not in (None, ""):
+                return v.get(key)
+        return " ".join(str(x) for x in v.values() if x not in (None, ""))
+    if isinstance(v, list):
+        return ", ".join(str(unwrap_cell(x)) for x in v if x not in (None, ""))
+    return v
+
 def norm_key(k):
     return str(k or "").strip().lower().replace(" ", "_").replace("-", "_")
 
@@ -486,7 +509,7 @@ def row_value(row, *names, default=""):
     wanted = {norm_key(n) for n in names}
     for k, v in row.items():
         if norm_key(k) in wanted:
-            return v
+            return unwrap_cell(v)
     return default
 
 def row_float(row, *names):
@@ -530,6 +553,46 @@ def find_order_meta(order, meta_map):
         if key in meta_map:
             return meta_map[key]
     return {}
+
+def load_staff_order_overrides():
+    """Manual staff creator map for orders Shopify confirms but the API token
+    cannot expose through GraphQL Order.createdBy. The defaults fix the two Q1
+    orders already verified with Shopify: #152088 and #152362.
+    """
+    data = dict(DEFAULT_STAFF_ORDER_OVERRIDES)
+    raw = os.environ.get("STAFF_ORDER_OVERRIDES_JSON", "").strip()
+    if raw:
+        try:
+            extra = json.loads(raw)
+            if isinstance(extra, dict):
+                data.update(extra)
+        except Exception as e:
+            print(f"  ⚠ Could not parse STAFF_ORDER_OVERRIDES_JSON: {e}")
+
+    out = {}
+    for order_ref, staff in data.items():
+        if isinstance(staff, str):
+            staff = {"name": staff, "email": ""}
+        name = (staff.get("name") or staff.get("staff") or staff.get("staff_member") or "").strip()
+        email = (staff.get("email") or "").strip()
+        if not name:
+            continue
+        meta = {
+            "order_staff_member_id": "",
+            "order_staff_name": name,
+            "order_staff_email": email,
+            "created_by_name": name,
+            "created_by_email": email,
+            "staff_member": name,
+            "staff_person_name": name,
+            "staff_person_email": email,
+            "staff_source": "manual override — confirmed from Shopify staff/createdBy lookup",
+            "manual_staff_note": staff.get("note", ""),
+        }
+        for key in order_lookup_keys(order_ref):
+            out[key] = meta
+    print(f"  → manual staff overrides loaded: {len(data)} orders")
+    return out
 
 def shopifyql_table(query, label):
     """Run a ShopifyQL query and return normalized row dictionaries."""
@@ -630,7 +693,7 @@ def fetch_shopifyql_staff_orders(start, end, tag=STAFF_ORDER_TAG):
     the customer as the staff/person key. Customer remains available only as
     audit context in the detail rows.
     """
-    safe_tag = str(tag or "employee order").replace("'", "\'")
+    safe_tag = str(tag or "employee order").replace("'", "''")
     q = (
         f"FROM orders "
         f"SHOW order_id, total_price, discount_amount, staff_member "
@@ -650,9 +713,13 @@ def fetch_shopifyql_staff_orders(start, end, tag=STAFF_ORDER_TAG):
             "shopifyql_order_id": order_id,
             "staff_member": staff_member,
             "staff_person_name": staff_member or "Unknown",
+            "staff_person_email": "",
+            "order_staff_name": staff_member,
+            "order_staff_email": "",
             "shopifyql_total_price": total_price,
             "shopifyql_discount_amount": discount_amount,
             "shopifyql_staff_source": "ShopifyQL orders.staff_member",
+            "staff_source": "ShopifyQL orders.staff_member",
         }
         for key in order_lookup_keys(order_id):
             result[key] = meta
@@ -709,22 +776,27 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
         staff_meta = find_order_meta(order, order_staff_map) or order_staff_map.get(oid_str, {})
         ql_staff_meta = find_order_meta(order, shopifyql_staff_order_map)
 
-        order_staff_name = (staff_meta.get("order_staff_name") or staff_meta.get("staff_member") or "").strip()
-        order_staff_email = (staff_meta.get("order_staff_email") or "").strip()
+        order_staff_name = (staff_meta.get("order_staff_name") or staff_meta.get("staff_member") or staff_meta.get("staff_person_name") or "").strip()
+        order_staff_email = (staff_meta.get("order_staff_email") or staff_meta.get("staff_person_email") or "").strip()
         order_staff_member_id = staff_meta.get("order_staff_member_id") or ""
         created_by_name = (staff_meta.get("created_by_name") or "").strip()
         created_by_email = (staff_meta.get("created_by_email") or "").strip()
         staff_source = (staff_meta.get("staff_source") or "").strip()
 
-        # Kept only for backwards compatibility if an older sheet/query is used.
-        shopifyql_staff_member = (ql_staff_meta.get("staff_member") or "").strip()
+        # ShopifyQL is the preferred API source for Staff because this token/API
+        # version does not expose Order.createdBy. Manual overrides win for
+        # known orders verified directly in Shopify. Customer is never used as
+        # the staff person.
+        shopifyql_staff_member = (ql_staff_meta.get("staff_member") or ql_staff_meta.get("staff_person_name") or "").strip()
+        shopifyql_staff_email = (ql_staff_meta.get("staff_person_email") or "").strip()
+        shopifyql_source = (ql_staff_meta.get("shopifyql_staff_source") or ql_staff_meta.get("staff_source") or "").strip()
         shopifyql_order_id = ql_staff_meta.get("shopifyql_order_id", "")
         shopifyql_total_price = ql_staff_meta.get("shopifyql_total_price", "")
         shopifyql_discount_amount = ql_staff_meta.get("shopifyql_discount_amount", "")
 
-        # Priority: GraphQL Order.createdBy only. Do NOT fallback to customer.
-        staff_person_name = order_staff_name or "Unknown"
-        staff_person_email = order_staff_email or ""
+        staff_person_name = order_staff_name or shopifyql_staff_member or "Unknown"
+        staff_person_email = order_staff_email or shopifyql_staff_email or ""
+        resolved_staff_source = staff_source or shopifyql_source or ("manual/ShopifyQL missing staff" if staff_person_name == "Unknown" else "")
 
         # Staff audit rows are still limited to internal/employee tagged orders.
         # The responsible staff person comes from Order.createdBy.
@@ -812,11 +884,11 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
                 "source_name": order.get("source_name", ""),
                 "order_id": order.get("id", ""),
                 "order_staff_member_id": order_staff_member_id,
-                "order_staff_name": order_staff_name,
-                "order_staff_email": order_staff_email,
-                "created_by_name": created_by_name,
-                "created_by_email": created_by_email,
-                "staff_source": staff_source,
+                "order_staff_name": order_staff_name or shopifyql_staff_member,
+                "order_staff_email": order_staff_email or shopifyql_staff_email,
+                "created_by_name": created_by_name or (order_staff_name if staff_source.startswith("manual override") else ""),
+                "created_by_email": created_by_email or (order_staff_email if staff_source.startswith("manual override") else ""),
+                "staff_source": resolved_staff_source,
                 "staff_member": staff_person_name if staff_person_name != "Unknown" else "",
                 "shopifyql_order_id": shopifyql_order_id,
                 "shopifyql_total_price": shopifyql_total_price,
@@ -1110,6 +1182,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--quarter",default="q1",choices=["q1","q2","q3","q4"])
     parser.add_argument("--year",type=int,default=2026)
+    parser.add_argument("--probe-staff", action="store_true", help="Only test Staff lookup sources and exit")
     args = parser.parse_args()
     q, y = args.quarter, args.year
     start, end, months = quarter_range(q, y)
@@ -1119,15 +1192,36 @@ def main():
     now   = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
 
     print(f"\n{'='*60}")
-    print(f"  CORRO QUARTERLY REPORT v2.8 — {label}")
+    print(f"  CORRO QUARTERLY REPORT v2.9 — {label}")
     print(f"  {start} → {end} | Months: {', '.join(mnames)}")
     print(f"{'='*60}\n")
 
+    # Staff lookup sanity test: no Sheets writes, useful for debugging Shopify API.
+    if args.probe_staff:
+        manual_map = load_staff_order_overrides()
+        ql_map = fetch_shopifyql_staff_orders(start, end)
+        print("\n  Staff probe for #152088 / #152362:")
+        for target in ["#152088", "152088", "#152362", "152362"]:
+            found = None
+            src = ""
+            for key in order_lookup_keys(target):
+                if key in manual_map:
+                    found = manual_map[key]; src = "manual override"; break
+                if key in ql_map:
+                    found = ql_map[key]; src = "ShopifyQL"; break
+            if found:
+                print(f"    {target}: {found.get('staff_member') or found.get('staff_person_name') or found.get('order_staff_name')} <{found.get('staff_person_email') or found.get('order_staff_email') or ''}> — {src}")
+            else:
+                print(f"    {target}: not found in ShopifyQL/manual map")
+        return
+
     vmap, all_pids = fetch_product_map()
     orders         = fetch_orders(start, end)
-    order_staff_map= fetch_order_creators_for_rest_orders(orders)
-    # Staff person comes ONLY from GraphQL Order.createdBy. Customer remains context only.
-    staff_ql_map   = {}
+    # Do NOT call GraphQL Order.createdBy here: this store/API returns
+    # undefinedField for createdBy on Order. Use ShopifyQL staff_member plus
+    # confirmed manual overrides instead.
+    order_staff_map= load_staff_order_overrides()
+    staff_ql_map   = fetch_shopifyql_staff_orders(start, end)
     sq_map         = fetch_shopifyql(start, end)
     sq_sku_map     = fetch_shopifyql_sku(start, end)
     sku_agg, disc_zero_rows, staff_rows, all_line_rows = aggregate(orders, vmap, months, order_staff_map, staff_ql_map)
