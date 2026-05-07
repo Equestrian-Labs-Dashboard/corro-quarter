@@ -484,7 +484,7 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
     <div class="dz-kpi">
       <div class="dz-kpi-lbl">Staff members</div>
       <div class="dz-kpi-val" id="st-tot-people" style="color:var(--green3)">—</div>
-      <div class="dz-kpi-sub">unique customers tagged</div>
+      <div class="dz-kpi-sub">staff/customer/creator identified</div>
     </div>
     <div class="dz-kpi">
       <div class="dz-kpi-lbl">Staff orders</div>
@@ -531,7 +531,7 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
         </div>
       </div>
       <div class="dz-search-row">
-        <input class="dz-search-inp" id="st-search" oninput="filterStaff()" placeholder="Search order, product, customer, tags…">
+        <input class="dz-search-inp" id="st-search" oninput="filterStaff()" placeholder="Search order, product, customer, creator, tags…">
       </div>
       <div class="dz-table-wrap">
         <div id="t-staff"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div>
@@ -811,14 +811,19 @@ function rVendors(rows){
 // ════════════════════════════════════════════════════════════════
 
 function rCostZero(czRows, detailRows){
-  _czRows = czRows || [];
-  // q_cost_zero_detail already contains real Shopify order lines for Cost Zero products.
-  // Keep a product-title safety filter in case old/extra rows are present in the sheet.
-  const czProductTitles = new Set(_czRows.map(r=>(r.product_title||"").toLowerCase().trim()));
-  _czDetailRows = (detailRows || []).filter(r=>{
+  const rawCzRows = czRows || [];
+  // q_cost_zero_detail must contain ONLY real Shopify order lines where unit_cost/COGS = 0.
+  // This extra filter protects the dashboard from stale sheets or products that already have COGS loaded.
+  const rawProductTitles = new Set(rawCzRows.map(r=>(r.product_title||"").toLowerCase().trim()));
+  const zeroDetailRows = (detailRows || []).filter(r=>{
     const t = (r.product_title||"").toLowerCase().trim();
-    return czProductTitles.has(t);
+    const cogs = nval(r,"cogs");
+    const unitCost = nval(r,"unit_cost");
+    return rawProductTitles.has(t) && cogs <= 0.01 && unitCost <= 0.01;
   });
+  const titlesWithZeroLines = new Set(zeroDetailRows.map(r=>(r.product_title||"").toLowerCase().trim()));
+  _czRows = zeroDetailRows.length ? rawCzRows.filter(r=>titlesWithZeroLines.has((r.product_title||"").toLowerCase().trim())) : rawCzRows;
+  _czDetailRows = zeroDetailRows;
 
   _czActiveProd = "";
 
@@ -956,6 +961,7 @@ function renderCzDetail(){
         <th>Month</th>
         <th>Customer</th>
         <th>Email</th>
+        <th>Created By</th>
         <th>SKU</th>
         <th>Vendor</th>
         <th class="r">Units</th>
@@ -984,6 +990,7 @@ function renderCzDetail(){
           <td style="font-size:10px;color:var(--tx3)">${r.month||"—"}</td>
           <td class="nm" style="max-width:130px">${r.customer_name||"—"}</td>
           <td style="font-size:10px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis">${r.customer_email||"—"}</td>
+          <td style="font-size:10px;color:var(--tx3);max-width:130px;overflow:hidden;text-overflow:ellipsis">${r.order_staff_name||"—"}</td>
           <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td>
           <td style="font-size:10px;color:var(--tx3)">${r.vendor||"—"}</td>
           <td class="r">${fN(r.units)}</td>
@@ -1194,7 +1201,11 @@ function rStaff(rows){
   const expected= _stAllRows.reduce((a,r)=>a+(parseFloat(r.expected_item_payment)||0),0);
   const paid    = _stAllRows.reduce((a,r)=>a+(parseFloat(r.net_paid)||0),0);
   const gap     = paid - expected;
-  const uniquePeople = new Set(_stAllRows.map(r=>r.customer_email||r.customer_name).filter(Boolean));
+  const personKeyOf = r => r.staff_person_email || r.staff_person_name || r.customer_email || r.customer_name || r.order_staff_email || r.order_staff_name || "Unknown";
+  const personNameOf = r => r.staff_person_name || r.customer_name || r.order_staff_name || "Unknown";
+  const personEmailOf = r => r.staff_person_email || r.customer_email || r.order_staff_email || "";
+
+  const uniquePeople = new Set(_stAllRows.map(personKeyOf).filter(Boolean));
   const uniqueOrders = new Set(_stAllRows.map(r=>r.order_name).filter(Boolean));
 
   G("st-tot-people").textContent = uniquePeople.size;
@@ -1205,11 +1216,12 @@ function rStaff(rows){
   G("st-tot-gap").textContent    = f$(gap);
   if(G("st-tot-gap")) G("st-tot-gap").style.color = gap < 0 ? "#F87171" : "var(--green3)";
 
-  // Build sidebar: one card per unique staff person
+  // Build sidebar: one card per staff/customer/creator.
+  // This fixes POS/internal orders with no customer, e.g. created by staffMember.
   const personMap = {};
   _stAllRows.forEach(r=>{
-    const key = r.customer_email || r.customer_name || "Unknown";
-    if(!personMap[key]) personMap[key]={name:r.customer_name||"Unknown",email:r.customer_email||"",lines:0,orders:new Set(),expected:0,paid:0,gap:0};
+    const key = personKeyOf(r);
+    if(!personMap[key]) personMap[key]={name:personNameOf(r),email:personEmailOf(r),lines:0,orders:new Set(),expected:0,paid:0,gap:0};
     personMap[key].lines++;
     personMap[key].orders.add(r.order_name||"");
     personMap[key].expected += parseFloat(r.expected_item_payment)||0;
@@ -1236,7 +1248,7 @@ function rStaff(rows){
     const gapClr = p.gap<0?"#F87171":"var(--green3)";
     card.innerHTML=`
       <div style="font-size:10px;font-weight:700;color:var(--tx);margin-bottom:2px">${p.name}</div>
-      <div style="font-size:9px;color:var(--tx3);margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email}</div>
+      <div style="font-size:9px;color:var(--tx3);margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||"creator/customer fallback"}</div>
       <div class="zc-units">${p.lines} <span style="font-size:10px;color:var(--tx3);font-family:'DM Sans',sans-serif;font-weight:400">lines</span></div>
       <div class="zc-row"><span>Orders</span><span>${p.orders.size}</span></div>
       <div class="zc-row"><span>Net paid</span><span style="color:var(--green3)">${f$(p.paid)}</span></div>
@@ -1254,11 +1266,12 @@ function renderStaffTable(){
   const el   = G("t-staff");
   const search=(G("st-search")?.value||"").toLowerCase();
   const cnt  = G("st-line-count");
+  const personKeyOf = r => r.staff_person_email || r.staff_person_name || r.customer_email || r.customer_name || r.order_staff_email || r.order_staff_name || "Unknown";
 
   const filtered = _stAllRows.filter(r=>{
-    const key = r.customer_email||r.customer_name||"Unknown";
+    const key = personKeyOf(r);
     const matchPerson = !_stActivePerson || key===_stActivePerson;
-    const matchSearch = !search || (r.order_name+r.customer_name+r.customer_email+r.product_title+(r.sku||"")+(r.tags||"")).toLowerCase().includes(search);
+    const matchSearch = !search || ((r.order_name||"")+(r.staff_person_name||"")+(r.staff_person_email||"")+(r.customer_name||"")+(r.customer_email||"")+(r.order_staff_name||"")+(r.order_staff_email||"")+(r.product_title||"")+(r.sku||"")+(r.tags||"")).toLowerCase().includes(search);
     return matchPerson && matchSearch;
   });
 
@@ -1271,7 +1284,7 @@ function renderStaffTable(){
 
   el.innerHTML=`<table>
     <thead><tr>
-      <th>Order #</th><th>Date</th><th>Month</th><th>Customer</th><th>Email</th>
+      <th>Order #</th><th>Date</th><th>Month</th><th>Staff / Customer</th><th>Email</th><th>Created By</th>
       <th>Category</th><th>Product</th><th>SKU</th><th>Vendor</th><th>Drop</th>
       <th class="r">Units</th>
       <th class="r dc">Gross Sale</th><th class="r dc">Discount</th><th class="r dc">Disc %</th>
@@ -1287,12 +1300,16 @@ function renderStaffTable(){
       const gross=parseFloat(r.gross_sales)||0;
       const disc=parseFloat(r.discount)||0;
       const discPct=r.discount_pct!==undefined&&r.discount_pct!==""?fM(r.discount_pct):(gross>0?fM(disc/gross):"—");
+      const staffName = r.staff_person_name || r.customer_name || r.order_staff_name || "—";
+      const staffEmail = r.staff_person_email || r.customer_email || r.order_staff_email || "—";
+      const createdBy = r.order_staff_name || "—";
       return`<tr>
         <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--green3);font-weight:600">${r.order_name||"—"}</td>
         <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.created_at||"—"}</td>
         <td style="font-size:10px;color:var(--tx3)">${r.month||"—"}</td>
-        <td class="nm" style="max-width:120px">${r.customer_name||"—"}</td>
-        <td style="font-size:10px;color:var(--tx3);max-width:150px;overflow:hidden;text-overflow:ellipsis">${r.customer_email||"—"}</td>
+        <td class="nm" style="max-width:130px">${staffName}</td>
+        <td style="font-size:10px;color:var(--tx3);max-width:150px;overflow:hidden;text-overflow:ellipsis">${staffEmail}</td>
+        <td style="font-size:10px;color:#60A5FA;max-width:130px;overflow:hidden;text-overflow:ellipsis">${createdBy}</td>
         <td style="font-size:10px;color:#60A5FA;font-weight:600">${r.category||"—"}</td>
         <td class="nm" style="max-width:170px">${r.product_title||"—"}<small>${r.sku||""}</small></td>
         <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td>
