@@ -1201,9 +1201,10 @@ function rStaff(rows){
   const expected= _stAllRows.reduce((a,r)=>a+(parseFloat(r.expected_item_payment)||0),0);
   const paid    = _stAllRows.reduce((a,r)=>a+(parseFloat(r.net_paid)||0),0);
   const gap     = paid - expected;
-  const personKeyOf = r => r.staff_person_email || r.staff_person_name || r.customer_email || r.customer_name || r.order_staff_email || r.order_staff_name || "Unknown";
-  const personNameOf = r => r.staff_person_name || r.customer_name || r.order_staff_name || "Unknown";
-  const personEmailOf = r => r.staff_person_email || r.customer_email || r.order_staff_email || "";
+  // Staff tab must group by ShopifyQL staff_member, NOT customer.
+  const personKeyOf = r => r.staff_member || r.staff_person_name || r.order_staff_name || "Unknown";
+  const personNameOf = r => r.staff_member || r.staff_person_name || r.order_staff_name || "Unknown";
+  const personEmailOf = r => r.staff_person_email || r.order_staff_email || "";
 
   const uniquePeople = new Set(_stAllRows.map(personKeyOf).filter(Boolean));
   const uniqueOrders = new Set(_stAllRows.map(r=>r.order_name).filter(Boolean));
@@ -1216,8 +1217,7 @@ function rStaff(rows){
   G("st-tot-gap").textContent    = f$(gap);
   if(G("st-tot-gap")) G("st-tot-gap").style.color = gap < 0 ? "#F87171" : "var(--green3)";
 
-  // Build sidebar: one card per staff/customer/creator.
-  // This fixes POS/internal orders with no customer, e.g. created by staffMember.
+  // Build sidebar: one card per staff member from ShopifyQL.
   const personMap = {};
   _stAllRows.forEach(r=>{
     const key = personKeyOf(r);
@@ -1248,7 +1248,7 @@ function rStaff(rows){
     const gapClr = p.gap<0?"#F87171":"var(--green3)";
     card.innerHTML=`
       <div style="font-size:10px;font-weight:700;color:var(--tx);margin-bottom:2px">${p.name}</div>
-      <div style="font-size:9px;color:var(--tx3);margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||"creator/customer fallback"}</div>
+      <div style="font-size:9px;color:var(--tx3);margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||"ShopifyQL staff_member"}</div>
       <div class="zc-units">${p.lines} <span style="font-size:10px;color:var(--tx3);font-family:'DM Sans',sans-serif;font-weight:400">lines</span></div>
       <div class="zc-row"><span>Orders</span><span>${p.orders.size}</span></div>
       <div class="zc-row"><span>Net paid</span><span style="color:var(--green3)">${f$(p.paid)}</span></div>
@@ -1266,12 +1266,12 @@ function renderStaffTable(){
   const el   = G("t-staff");
   const search=(G("st-search")?.value||"").toLowerCase();
   const cnt  = G("st-line-count");
-  const personKeyOf = r => r.staff_person_email || r.staff_person_name || r.customer_email || r.customer_name || r.order_staff_email || r.order_staff_name || "Unknown";
+  const personKeyOf = r => r.staff_member || r.staff_person_name || r.order_staff_name || "Unknown";
 
   const filtered = _stAllRows.filter(r=>{
     const key = personKeyOf(r);
     const matchPerson = !_stActivePerson || key===_stActivePerson;
-    const matchSearch = !search || ((r.order_name||"")+(r.staff_person_name||"")+(r.staff_person_email||"")+(r.customer_name||"")+(r.customer_email||"")+(r.order_staff_name||"")+(r.order_staff_email||"")+(r.product_title||"")+(r.sku||"")+(r.tags||"")).toLowerCase().includes(search);
+    const matchSearch = !search || ((r.order_name||"")+(r.staff_member||"")+(r.staff_person_name||"")+(r.staff_person_email||"")+(r.customer_name||"")+(r.customer_email||"")+(r.order_staff_name||"")+(r.order_staff_email||"")+(r.product_title||"")+(r.sku||"")+(r.tags||"")).toLowerCase().includes(search);
     return matchPerson && matchSearch;
   });
 
@@ -1284,7 +1284,7 @@ function renderStaffTable(){
 
   el.innerHTML=`<table>
     <thead><tr>
-      <th>Order #</th><th>Date</th><th>Month</th><th>Staff / Customer</th><th>Email</th><th>Created By</th>
+      <th>Order #</th><th>Date</th><th>Month</th><th>Staff Member</th><th>Staff Email</th><th>Customer</th>
       <th>Category</th><th>Product</th><th>SKU</th><th>Vendor</th><th>Drop</th>
       <th class="r">Units</th>
       <th class="r dc">Gross Sale</th><th class="r dc">Discount</th><th class="r dc">Disc %</th>
@@ -1300,16 +1300,16 @@ function renderStaffTable(){
       const gross=parseFloat(r.gross_sales)||0;
       const disc=parseFloat(r.discount)||0;
       const discPct=r.discount_pct!==undefined&&r.discount_pct!==""?fM(r.discount_pct):(gross>0?fM(disc/gross):"—");
-      const staffName = r.staff_person_name || r.customer_name || r.order_staff_name || "—";
-      const staffEmail = r.staff_person_email || r.customer_email || r.order_staff_email || "—";
-      const createdBy = r.order_staff_name || "—";
+      const staffName = r.staff_member || r.staff_person_name || r.order_staff_name || "—";
+      const staffEmail = r.staff_person_email || r.order_staff_email || "—";
+      const customerTxt = r.customer_name || r.customer_email || "—";
       return`<tr>
         <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--green3);font-weight:600">${r.order_name||"—"}</td>
         <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.created_at||"—"}</td>
         <td style="font-size:10px;color:var(--tx3)">${r.month||"—"}</td>
         <td class="nm" style="max-width:130px">${staffName}</td>
         <td style="font-size:10px;color:var(--tx3);max-width:150px;overflow:hidden;text-overflow:ellipsis">${staffEmail}</td>
-        <td style="font-size:10px;color:#60A5FA;max-width:130px;overflow:hidden;text-overflow:ellipsis">${createdBy}</td>
+        <td style="font-size:10px;color:#60A5FA;max-width:130px;overflow:hidden;text-overflow:ellipsis">${customerTxt}</td>
         <td style="font-size:10px;color:#60A5FA;font-weight:600">${r.category||"—"}</td>
         <td class="nm" style="max-width:170px">${r.product_title||"—"}<small>${r.sku||""}</small></td>
         <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td>
