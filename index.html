@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Corro — Quarterly Report</title>
+<title>Corro — Period Report</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -219,22 +219,36 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
     </div>
     <div class="brand-name">Corro</div>
     <div class="brand-div"></div>
-    <div class="brand-sub">Quarterly Report</div>
-    <div class="pb-badge"><div class="pb-dot"></div><span id="pb">—</span></div>
+    <div class="brand-sub">Period Report</div>
+    <div class="pb-badge"><div class="pb-dot"></div><span id="pb">—</span></div><div class="pb-badge" id="pst"><div class="pb-dot" style="background:var(--gold2)"></div><span>—</span></div>
   </div>
   <div class="top-controls">
     <div class="sg"><div class="sl-lbl">Year</div>
-      <select class="ps" id="sy" onchange="render()">
-        <option value="2026" selected>2026</option><option value="2025">2025</option><option value="2024">2024</option>
+      <select class="ps" id="sy" onchange="buildWeekOptions();render()">
+        <option value="2026" selected>2026</option>
       </select>
     </div>
-    <div class="sg"><div class="sl-lbl">Quarter</div>
+    <div class="sg"><div class="sl-lbl">Period</div>
+      <select class="ps" id="sp" onchange="updatePeriodControls();render()">
+        <option value="quarter" selected>Quarter</option>
+        <option value="month">Month</option>
+        <option value="week">Week</option>
+        <option value="ytd">YTD</option>
+      </select>
+    </div>
+    <div class="sg period-control" id="grp-q"><div class="sl-lbl">Quarter</div>
       <select class="ps" id="sq" onchange="render()">
-        <option value="q1" selected>Q1 — Jan–Mar</option>
-        <option value="q2">Q2 — Apr–Jun</option>
+        <option value="q1">Q1 — Jan–Mar</option>
+        <option value="q2" selected>Q2 — Apr–Jun</option>
         <option value="q3">Q3 — Jul–Sep</option>
         <option value="q4">Q4 — Oct–Dec</option>
       </select>
+    </div>
+    <div class="sg period-control" id="grp-m" style="display:none"><div class="sl-lbl">Month</div>
+      <select class="ps" id="sm" onchange="render()"></select>
+    </div>
+    <div class="sg period-control" id="grp-w" style="display:none"><div class="sl-lbl">Week</div>
+      <select class="ps" id="sw" onchange="render()"></select>
     </div>
     <button class="btn-top" onclick="forceRefresh()">
       <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M10 6a4 4 0 1 1-.8-2.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 2v2.5H7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -548,7 +562,7 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
 
 </div><!-- /content -->
 
-<div class="foot">Shopify API → Google Sheets → corro_quarter.py &nbsp;·&nbsp; <span id="fl">—</span> &nbsp;·&nbsp; <span id="upd-at">—</span></div>
+<div class="foot">Shopify API → Google Sheets → corro_period.py &nbsp;·&nbsp; <span id="fl">—</span> &nbsp;·&nbsp; <span id="upd-at">—</span></div>
 
 <script>
 const SHEET_ID="1uXrkOcmo9cJmO9z_TTDacDDW5EZ2IvVZMvzIUWQG__Y";
@@ -575,9 +589,80 @@ const fN=v=>{const n=parseInt(v)||0;return n>=1000?(n/1000).toFixed(1)+"K":n.toL
 const fM=v=>{const n=parseFloat(v)||0;return(n*100).toFixed(1)+"%";};
 const nval=(r,...keys)=>{for(const k of keys){if(r&&r[k]!==undefined&&r[k]!==null&&r[k]!==""){return parseFloat(r[k])||0;}}return 0;};
 const gC=v=>{const n=parseFloat(v)||0;return n<0?"#F87171":n<0.12?"var(--gold2)":"var(--green3)";};
-const getSfx=()=>`${G("sq").value}_${G("sy").value}`;
-const getLbl=()=>{const q=G("sq").value,y=G("sy").value;const m={q1:"Jan–Mar",q2:"Apr–Jun",q3:"Jul–Sep",q4:"Oct–Dec"};return`${q.toUpperCase()} ${y} · ${m[q]}`;};
-const getMN=()=>{const q=G("sq").value;return{q1:["January","February","March"],q2:["April","May","June"],q3:["July","August","September"],q4:["October","November","December"]}[q];};
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const TODAY=new Date();
+const START_YEAR=2026;
+
+function isoWeek(d){
+  const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const dayNum=date.getUTCDay()||7;
+  date.setUTCDate(date.getUTCDate()+4-dayNum);
+  const yearStart=new Date(Date.UTC(date.getUTCFullYear(),0,1));
+  return Math.ceil((((date-yearStart)/86400000)+1)/7);
+}
+function weeksInYear(y){return isoWeek(new Date(y,11,28));}
+function isCurrentPeriod(){
+  const y=parseInt(G("sy").value,10), p=G("sp").value;
+  const nowY=TODAY.getFullYear();
+  if(y!==nowY) return false;
+  if(p==="ytd") return true;
+  if(p==="month") return parseInt(G("sm").value,10)===(TODAY.getMonth()+1);
+  if(p==="week") return parseInt(G("sw").value,10)===isoWeek(TODAY);
+  const q=Math.floor(TODAY.getMonth()/3)+1;
+  return G("sq").value===`q${q}`;
+}
+function periodStatus(){return isCurrentPeriod()?"IN PROCESS":"CLOSED";}
+const getSfx=()=>{
+  const p=G("sp").value,y=G("sy").value;
+  if(p==="month") return `m${String(G("sm").value).padStart(2,"0")}_${y}`;
+  if(p==="week") return `w${String(G("sw").value).padStart(2,"0")}_${y}`;
+  if(p==="ytd") return `ytd_${y}`;
+  return `${G("sq").value}_${y}`;
+};
+const getLbl=()=>{
+  const p=G("sp").value,y=G("sy").value;
+  if(p==="month") return `${MONTHS[parseInt(G("sm").value,10)-1]} ${y}`;
+  if(p==="week") return `Week ${String(G("sw").value).padStart(2,"0")} ${y}`;
+  if(p==="ytd") return `YTD ${y}`;
+  const q=G("sq").value;const m={q1:"Jan–Mar",q2:"Apr–Jun",q3:"Jul–Sep",q4:"Oct–Dec"};return`${q.toUpperCase()} ${y} · ${m[q]}`;
+};
+const getMN=()=>{
+  const p=G("sp").value;
+  if(p==="month") return [MONTHS[parseInt(G("sm").value,10)-1]];
+  if(p==="week"){
+    const y=parseInt(G("sy").value,10), w=parseInt(G("sw").value,10);
+    const start=new Date(Date.UTC(y,0,1+(w-1)*7));
+    const day=start.getUTCDay()||7;
+    start.setUTCDate(start.getUTCDate()+1-day);
+    const end=new Date(start);end.setUTCDate(start.getUTCDate()+6);
+    const arr=[MONTHS[start.getUTCMonth()]];
+    if(end.getUTCMonth()!==start.getUTCMonth()) arr.push(MONTHS[end.getUTCMonth()]);
+    return arr;
+  }
+  if(p==="ytd") return MONTHS.slice(0,TODAY.getFullYear()==parseInt(G("sy").value,10)?TODAY.getMonth()+1:12);
+  const q=G("sq").value;return{q1:["January","February","March"],q2:["April","May","June"],q3:["July","August","September"],q4:["October","November","December"]}[q];
+};
+
+function buildMonthOptions(){
+  const sm=G("sm"); if(!sm) return;
+  sm.innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}" ${i===TODAY.getMonth()?"selected":""}>${String(i+1).padStart(2,"0")} — ${m}</option>`).join("");
+}
+function buildWeekOptions(){
+  const sw=G("sw"); if(!sw) return;
+  const y=parseInt(G("sy").value,10);
+  const max=weeksInYear(y);
+  const currentWeek=isoWeek(TODAY);
+  sw.innerHTML=Array.from({length:max},(_,i)=>{
+    const w=i+1;
+    return `<option value="${w}" ${w===currentWeek?"selected":""}>Week ${String(w).padStart(2,"0")}</option>`;
+  }).join("");
+}
+function updatePeriodControls(){
+  const p=G("sp").value;
+  G("grp-q").style.display=p==="quarter"?"flex":"none";
+  G("grp-m").style.display=p==="month"?"flex":"none";
+  G("grp-w").style.display=p==="week"?"flex":"none";
+}
 
 document.querySelectorAll(".tbn").forEach(btn=>{
   btn.addEventListener("click",()=>{
@@ -621,11 +706,11 @@ async function ft(tab){
 
 // ── SUMMARY ──────────────────────────────────────────────────────
 function rSummary(rows){
-  if(!rows||!rows.length){G("mg").innerHTML=`<div class="empty">No data — run corro_quarter.py first</div>`;return;}
+  if(!rows||!rows.length){G("mg").innerHTML=`<div class="empty">No data — run corro_period.py first</div>`;return;}
   const allKeys=Object.keys(rows[0]);
   const metricKey=allKeys.find(k=>k.toLowerCase()==="metric")||"metric";
-  const totalKey=allKeys.find(k=>k.toLowerCase().includes("total"))||allKeys[allKeys.length-1];
-  const monthKeys=allKeys.filter(k=>!["updated_at","quarter","metric"].includes(k.toLowerCase())&&!k.toLowerCase().includes("total")&&k.trim()!=="");
+  const totalKey=allKeys.find(k=>k.toLowerCase()==="total")||allKeys.find(k=>k.toLowerCase().includes("total"))||allKeys[allKeys.length-1];
+  const monthKeys=allKeys.filter(k=>!["updated_at","quarter","period","status","metric"].includes(k.toLowerCase())&&!k.toLowerCase().includes("total")&&k.trim()!=="");
   const get=(m,col)=>{const row=rows.find(r=>(r[metricKey]||"").trim()===m);if(!row)return"0";if(col)return row[col]||"0";return row[totalKey]||"0";};
   const gs=parseFloat(get("Gross Sales"))||0,disc=parseFloat(get("Discounts"))||0,ret=parseFloat(get("Returns"))||0;
   const ns=parseFloat(get("Net Sales"))||0,gp=parseFloat(get("Gross Profit"))||0;
@@ -1352,7 +1437,7 @@ function rNoSales(rows){
 async function render(){
   const sfx=getSfx(),label=getLbl();
   G("ov").classList.add("show");G("ovt").textContent=`Loading ${label}…`;
-  G("pb").textContent=label;G("fl").textContent=label;
+  G("pb").textContent=label;G("fl").textContent=label;G("pst").querySelector("span").textContent=periodStatus();
   cache={};_dzAllRows=[];_dzActiveCat="";_stAllRows=[];_stActivePerson="";_czRows=[];_czDetailRows=[];_czActiveProd="";
 
   const tabs=[
@@ -1393,7 +1478,7 @@ function toggleTheme(){
   G("themeBtn").textContent=dk?"☀":"☾";
 }
 
-render();
+buildMonthOptions();buildWeekOptions();updatePeriodControls();render();
 </script>
 </body>
 </html>
