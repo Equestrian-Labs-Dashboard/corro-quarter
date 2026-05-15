@@ -1,0 +1,51 @@
+name: Period Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      period:
+        description: 'Period type'
+        required: true
+        default: 'quarter'
+        type: choice
+        options: [quarter, month, week, ytd]
+      quarter:
+        description: 'Quarter (used when period = quarter)'
+        required: true
+        default: 'q2'
+        type: choice
+        options: [q1, q2, q3, q4]
+      month:
+        description: 'Month number 1-12 (used when period = month)'
+        required: true
+        default: '5'
+      week:
+        description: 'ISO week number 1-53 (used when period = week)'
+        required: true
+        default: '20'
+      year:
+        description: 'Year (from 2026 onward)'
+        required: true
+        default: '2026'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests gspread google-auth pytz
+      - name: Run period report
+        env:
+          SHOPIFY_TOKEN_CORRO: ${{ secrets.SHOPIFY_TOKEN_CORRO }}
+          GOOGLE_CREDENTIALS:  ${{ secrets.GOOGLE_CREDENTIALS }}
+          SHEET_ID_QUARTER:    ${{ secrets.SHEET_ID_QUARTER }}
+        run: >
+          python corro_period.py
+          --period ${{ inputs.period }}
+          --quarter ${{ inputs.quarter }}
+          --month ${{ inputs.month }}
+          --week ${{ inputs.week }}
+          --year ${{ inputs.year }}
