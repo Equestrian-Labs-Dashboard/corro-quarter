@@ -1,8 +1,8 @@
 """
-CORRO QUARTERLY REPORT — v2.9
+CORRO PERIOD REPORT — v3.0
 ==============================
-Generates Corro's quarterly report from the Shopify API.
-This script is ONLY for the Quarter Report / Quarterly Dashboard.
+Generates Corro reports from the Shopify API by quarter, month, week, or YTD.
+This script supports Quarter / Month / Week / YTD dashboard periods.
 
 Sheets generated (each tab receives suffix _{q}_{y}):
   q_summary              — total KPIs + monthly breakdown
@@ -124,6 +124,56 @@ def quarter_range(q, y):
     end    = date(y, months[-1], calendar.monthrange(y, months[-1])[1])
     today  = datetime.now(TIMEZONE).date()
     return start, min(end, today), months
+
+def month_range(m, y):
+    start = date(y, m, 1)
+    end = date(y, m, calendar.monthrange(y, m)[1])
+    today = datetime.now(TIMEZONE).date()
+    return start, min(end, today), [m]
+
+def week_range(iso_week, y):
+    start = date.fromisocalendar(y, iso_week, 1)
+    end = date.fromisocalendar(y, iso_week, 7)
+    today = datetime.now(TIMEZONE).date()
+    months = sorted({start.month, end.month})
+    return start, min(end, today), months
+
+def ytd_range(y):
+    start = date(y, 1, 1)
+    today = datetime.now(TIMEZONE).date()
+    end = min(date(y, 12, 31), today)
+    months = list(range(1, end.month + 1))
+    return start, end, months
+
+def selected_period_range(args):
+    """Return start, end, active months, display label, tab suffix, and status."""
+    today = datetime.now(TIMEZONE).date()
+    period = args.period
+    y = args.year
+
+    if period == "quarter":
+        start, end, months = quarter_range(args.quarter, y)
+        label = f"{args.quarter.upper()} {y}"
+        sfx = f"{args.quarter}_{y}"
+        natural_end = date(y, QUARTER_MONTHS[args.quarter][-1], calendar.monthrange(y, QUARTER_MONTHS[args.quarter][-1])[1])
+    elif period == "month":
+        start, end, months = month_range(args.month, y)
+        label = f"{MONTH_NAMES[args.month]} {y}"
+        sfx = f"m{args.month:02d}_{y}"
+        natural_end = date(y, args.month, calendar.monthrange(y, args.month)[1])
+    elif period == "week":
+        start, end, months = week_range(args.week, y)
+        label = f"Week {args.week:02d} {y}"
+        sfx = f"w{args.week:02d}_{y}"
+        natural_end = date.fromisocalendar(y, args.week, 7)
+    else:
+        start, end, months = ytd_range(y)
+        label = f"YTD {y}"
+        sfx = f"ytd_{y}"
+        natural_end = date(y, 12, 31)
+
+    status = "IN PROCESS" if start <= today <= natural_end else "CLOSED"
+    return start, end, months, label, sfx, status
 
 # ── SHOPIFY REST ──────────────────────────────────────────────────
 def shopify_get(endpoint, params):
@@ -1180,20 +1230,21 @@ def write_tab(sh, name, headers, rows):
 # ── MAIN ──────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--period", default="quarter", choices=["quarter","month","week","ytd"])
     parser.add_argument("--quarter",default="q1",choices=["q1","q2","q3","q4"])
+    parser.add_argument("--month",type=int,default=datetime.now(TIMEZONE).month,choices=list(range(1,13)))
+    parser.add_argument("--week",type=int,default=datetime.now(TIMEZONE).date().isocalendar().week,choices=list(range(1,54)))
     parser.add_argument("--year",type=int,default=2026)
     parser.add_argument("--probe-staff", action="store_true", help="Only test Staff lookup sources and exit")
     args = parser.parse_args()
-    q, y = args.quarter, args.year
-    start, end, months = quarter_range(q, y)
-    label = f"{q.upper()} {y}"
+    y = args.year
+    start, end, months, label, sfx, period_status = selected_period_range(args)
     mnames = [MONTH_NAMES[m] for m in months]
-    sfx   = f"{q}_{y}"
     now   = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
 
     print(f"\n{'='*60}")
     print(f"  CORRO QUARTERLY REPORT v2.9 — {label}")
-    print(f"  {start} → {end} | Months: {', '.join(mnames)}")
+    print(f"  {start} → {end} | Months: {', '.join(mnames)} | Status: {period_status}")
     print(f"{'='*60}\n")
 
     # Staff lookup sanity test: no Sheets writes, useful for debugging Shopify API.
@@ -1253,18 +1304,25 @@ def main():
     monthly_margin = {m:(round(monthly_gp[m]/monthly_ns[m]*100,1) if monthly_ns[m] else 0) for m in months}
 
     # ── 1. SUMMARY ────────────────────────────────────────────────
-    h = ["updated_at","quarter","metric",mnames[0],mnames[1],mnames[2],"Q Total"]
+    h = ["updated_at","period","status","metric"] + mnames + ["Total"]
+
+    def metric_row(metric, values_by_month, total, pct=False):
+        vals = []
+        for m in months:
+            v = values_by_month.get(m, 0)
+            vals.append(f"{v}%" if pct else round(v,2) if isinstance(v,float) else v)
+        return [now, label, period_status, metric] + vals + ([f"{total}%" if pct else round(total,2) if isinstance(total,float) else total])
 
     rows_s = [
-        [now,label,"Gross Sales",  round(monthly_gs[months[0]],2),round(monthly_gs[months[1]],2),round(monthly_gs[months[2]],2),round(total_gs,2)],
-        [now,label,"Discounts",    round(monthly_disc[months[0]],2),round(monthly_disc[months[1]],2),round(monthly_disc[months[2]],2),round(total_disc,2)],
-        [now,label,"Returns",      round(monthly_ret[months[0]],2),round(monthly_ret[months[1]],2),round(monthly_ret[months[2]],2),round(total_ret,2)],
-        [now,label,"Net Sales",    round(monthly_ns[months[0]],2),round(monthly_ns[months[1]],2),round(monthly_ns[months[2]],2),round(total_ns,2)],
-        [now,label,"COGS",         round(monthly_cogs[months[0]],2),round(monthly_cogs[months[1]],2),round(monthly_cogs[months[2]],2),round(total_cogs,2)],
-        [now,label,"Gross Profit", round(monthly_gp[months[0]],2),round(monthly_gp[months[1]],2),round(monthly_gp[months[2]],2),round(total_gp,2)],
-        [now,label,"Gross Margin", f"{monthly_margin[months[0]]}%",f"{monthly_margin[months[1]]}%",f"{monthly_margin[months[2]]}%",f"{gp_margin}%"],
-        [now,label,"Units Sold",   monthly_u[months[0]],monthly_u[months[1]],monthly_u[months[2]],total_units],
-        [now,label,"Orders",       "","","",total_ords],
+        metric_row("Gross Sales", monthly_gs, total_gs),
+        metric_row("Discounts", monthly_disc, total_disc),
+        metric_row("Returns", monthly_ret, total_ret),
+        metric_row("Net Sales", monthly_ns, total_ns),
+        metric_row("COGS", monthly_cogs, total_cogs),
+        metric_row("Gross Profit", monthly_gp, total_gp),
+        metric_row("Gross Margin", monthly_margin, gp_margin, pct=True),
+        metric_row("Units Sold", monthly_u, total_units),
+        [now,label,period_status,"Orders"] + [""]*len(months) + [total_ords],
     ]
     write_tab(sh, f"q_summary_{sfx}", h, rows_s)
 
@@ -1274,50 +1332,49 @@ def main():
         gp  = p["gross_profit"] or 0
         margin = round(gp/ns,4) if ns else 0
         total_sales = round(p["gross_sales"],2)
-        return [
-            now, label, i+1,
+        base = [
+            now, label, period_status, i+1,
             p["product_title"], p.get("vendor",""), p.get("product_type",""),
             p.get("is_dropship","NO"), p["units"],
             round(p["gross_sales"],2), round(p["discounts"],2),
             round(p["returns"],2),     round(ns,2),
             round(p["cogs"],2),        round(gp,2),
             round(margin,4), total_sales, p.get("orders_count") or len(p["orders"]),
-            round(p["monthly"][months[0]]["net_sales"],2),
-            round(p["monthly"][months[1]]["net_sales"],2),
-            round(p["monthly"][months[2]]["net_sales"],2),
-            p["monthly"][months[0]]["units"],
-            p["monthly"][months[1]]["units"],
-            p["monthly"][months[2]]["units"],
         ]
+        for m in months:
+            base.append(round(p["monthly"][m]["net_sales"],2))
+        for m in months:
+            base.append(p["monthly"][m]["units"])
+        return base
 
-    h_prod = ["updated_at","quarter","rank","product_title","vendor","product_type",
+    h_prod = ["updated_at","period","status","rank","product_title","vendor","product_type",
               "is_dropship","units","gross_sales","discounts","returns","net_sales",
-              "cogs","gross_profit","gross_margin","total_sales","orders",
-              f"{mnames[0]} net_sales",f"{mnames[1]} net_sales",f"{mnames[2]} net_sales",
-              f"{mnames[0]} units",f"{mnames[1]} units",f"{mnames[2]} units"]
+              "cogs","gross_profit","gross_margin","total_sales","orders"] + \
+             [f"{MONTH_NAMES[m]} net_sales" for m in months] + \
+             [f"{MONTH_NAMES[m]} units" for m in months]
 
     # Helper: format rows for SKU-level
     def sku_row(i, r):
         ns  = r["net_sales"] or 0
         gp  = r["gross_profit"] or 0
         margin = round(gp/ns,4) if ns else 0
-        return [
-            now, label, i+1,
+        base = [
+            now, label, period_status, i+1,
             r["product_title"], r["sku"], r.get("vendor",""), r.get("product_type",""),
             "YES" if r["unit_cost"]>0 else "NO", r["units"],
             round(r["gross_sales"],2), round(r["discounts"],2),
             round(r["returns"],2),     round(ns,2),
             round(r["cogs"],2),        round(gp,2),
             round(margin,3), round(r["gross_sales"],2), r.get("orders_count") or len(r["orders"]),
-            round(r["monthly"][months[0]]["net_sales"],2),
-            round(r["monthly"][months[1]]["net_sales"],2),
-            round(r["monthly"][months[2]]["net_sales"],2),
         ]
+        for m in months:
+            base.append(round(r["monthly"][m]["net_sales"],2))
+        return base
 
-    h_sku = ["updated_at","quarter","rank","product_title","sku","vendor","product_type",
+    h_sku = ["updated_at","period","status","rank","product_title","sku","vendor","product_type",
              "is_dropship","units","gross_sales","discounts","returns","net_sales",
-             "cogs","gross_profit","gross_margin","total_sales","orders",
-             f"{mnames[0]} net_sales",f"{mnames[1]} net_sales",f"{mnames[2]} net_sales"]
+             "cogs","gross_profit","gross_margin","total_sales","orders"] + \
+            [f"{MONTH_NAMES[m]} net_sales" for m in months]
 
     # ── 2. TOP 100 BY SKU ─────────────────────────────────────────
     sorted_skus = sorted(sku_exact_rows, key=lambda x: x["gross_profit"], reverse=True)
@@ -1350,11 +1407,11 @@ def main():
     # ── 7. COST ZERO (strict: actual line unit_cost / COGS = 0) ──
     cost_zero, cost_zero_detail_rows = build_cost_zero_from_lines(all_line_rows)
     cost_zero = sorted(cost_zero, key=lambda x: x["gross_sales"], reverse=True)
-    h_cz = ["updated_at","quarter","rank","product_title","vendor","product_type",
+    h_cz = ["updated_at","period","status","rank","product_title","vendor","product_type",
             "units","gross_sales","discounts","net_sales","cogs","gross_profit",
             "gross_margin","orders"]
     write_tab(sh, f"q_cost_zero_{sfx}", h_cz,
-              [[now,label,i+1,p["product_title"],p.get("vendor","") or "Unknown",p.get("product_type",""),
+              [[now,label,period_status,i+1,p["product_title"],p.get("vendor","") or "Unknown",p.get("product_type",""),
                 p["units"],round(p["gross_sales"],2),round(p["discounts"],2),round(p["net_sales"],2),
                 0,round(p["gross_profit"],2),
                 round((p["gross_profit"]/p["net_sales"]),4) if p["net_sales"] else 0,
@@ -1364,13 +1421,13 @@ def main():
     # Order-by-order detail for Cost Zero products.
     # Only lines with unit_cost = 0 are written here. If a product has mixed
     # variants, loaded-cost variants are excluded from Cost Zero.
-    h_cz_det = ["updated_at","quarter","order_name","created_at","month","category",
+    h_cz_det = ["updated_at","period","status","order_name","created_at","month","category",
                 "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
                 "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                 "gross_profit","shipping_paid","financial_status","source_name","order_id",
                 "order_staff_name","order_staff_email","created_by_name","created_by_email","staff_source"]
     write_tab(sh, f"q_cost_zero_detail_{sfx}", h_cz_det,
-              [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month","category",
+              [[now,label,period_status]+[d.get(k,"") for k in ["order_name","created_at","month","category",
                "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                "gross_profit","shipping_paid","financial_status","source_name","order_id",
@@ -1388,43 +1445,43 @@ def main():
             cat_month[d["category"]][om]["products"].add(d["product_title"])
 
     all_cats = [c for c,_ in DISC_ZERO_CATS] + ["Other"]
-    h_dz = ["updated_at","quarter","category",
-            f"{mnames[0]} units",f"{mnames[0]} discount",f"{mnames[0]} cogs",
-            f"{mnames[1]} units",f"{mnames[1]} discount",f"{mnames[1]} cogs",
-            f"{mnames[2]} units",f"{mnames[2]} discount",f"{mnames[2]} cogs",
-            "total units","total discount","total cogs","sample products"]
+    h_dz = ["updated_at","period","status","category"]
+    for m in months:
+        h_dz += [f"{MONTH_NAMES[m]} units", f"{MONTH_NAMES[m]} discount", f"{MONTH_NAMES[m]} cogs"]
+    h_dz += ["total units","total discount","total cogs","sample products"]
+
     dz_rows = []
     for cat in all_cats:
         if cat not in cat_month: continue
         cm = cat_month[cat]
         all_prods = set()
-        for m in months: all_prods |= cm[m]["products"]
-        dz_rows.append([
-            now, label, cat,
-            cm[months[0]]["units"], round(cm[months[0]]["discount"],2), round(cm[months[0]]["cogs"],2),
-            cm[months[1]]["units"], round(cm[months[1]]["discount"],2), round(cm[months[1]]["cogs"],2),
-            cm[months[2]]["units"], round(cm[months[2]]["discount"],2), round(cm[months[2]]["cogs"],2),
+        row = [now, label, period_status, cat]
+        for m in months:
+            all_prods |= cm[m]["products"]
+            row += [cm[m]["units"], round(cm[m]["discount"],2), round(cm[m]["cogs"],2)]
+        row += [
             sum(cm[m]["units"] for m in months),
             round(sum(cm[m]["discount"] for m in months),2),
             round(sum(cm[m]["cogs"] for m in months),2),
             ", ".join(sorted(all_prods)[:5]),
-        ])
+        ]
+        dz_rows.append(row)
     write_tab(sh, f"q_discount_zero_{sfx}", h_dz, dz_rows)
 
     # Order-by-order detail for 100% discounts
-    h_dz_det = ["updated_at","quarter","order_name","created_at","month","category",
+    h_dz_det = ["updated_at","period","status","order_name","created_at","month","category",
                 "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
                 "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                 "gross_profit","shipping_paid"]
     write_tab(sh, f"q_discount_zero_detail_{sfx}", h_dz_det,
-              [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month","category",
+              [[now,label,period_status]+[d.get(k,"") for k in ["order_name","created_at","month","category",
                "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                "gross_profit","shipping_paid"]]
                for d in sorted(disc_zero_rows, key=lambda x: x["created_at"])])
 
     # ── 8b. STAFF / INTERNAL AUDIT ────────────────────────────────
-    h_staff = ["updated_at","quarter","order_name","created_at","month",
+    h_staff = ["updated_at","period","status","order_name","created_at","month",
                "staff_member","staff_person_name","staff_person_email",
                "customer_name","customer_email",
                "order_staff_name","order_staff_email","created_by_name","created_by_email","staff_source","source_name",
@@ -1433,7 +1490,7 @@ def main():
                "units","gross_sales","discount","discount_pct","net_paid","unit_cost","cogs",
                "expected_item_payment","payment_gap","gross_profit","shipping_paid"]
     write_tab(sh, f"q_staff_orders_{sfx}", h_staff,
-              [[now,label]+[d.get(k,"") for k in ["order_name","created_at","month",
+              [[now,label,period_status]+[d.get(k,"") for k in ["order_name","created_at","month",
                "staff_member","staff_person_name","staff_person_email",
                "customer_name","customer_email",
                "order_staff_name","order_staff_email","created_by_name","created_by_email","staff_source","source_name",
@@ -1444,17 +1501,17 @@ def main():
                for d in sorted(staff_rows, key=lambda x: x["created_at"])])
 
     # ── 9. MONTHLY BREAKDOWN ──────────────────────────────────────
-    h_mb = ["updated_at","quarter","rank","product_title","sku","vendor",
-            f"{mnames[0]} units",f"{mnames[0]} sales",f"{mnames[0]} margin",
-            f"{mnames[1]} units",f"{mnames[1]} sales",f"{mnames[1]} margin",
-            f"{mnames[2]} units",f"{mnames[2]} sales",f"{mnames[2]} margin",
-            "Q total units","Q total sales","Q avg margin"]
+    h_mb = ["updated_at","period","status","rank","product_title","sku","vendor"]
+    for m in months:
+        h_mb += [f"{MONTH_NAMES[m]} units", f"{MONTH_NAMES[m]} sales", f"{MONTH_NAMES[m]} margin"]
+    h_mb += ["Total units","Total sales","Avg margin"]
+
     mb_rows = []
     for i, r in enumerate(sorted_skus[:100]):
         ns = r["net_sales"] or 0
         gp = r["gross_profit"] or 0
         avg_m = round(gp/ns,3) if ns else 0
-        row_data = [now, label, i+1, r["product_title"], r["sku"], r.get("vendor","")]
+        row_data = [now, label, period_status, i+1, r["product_title"], r["sku"], r.get("vendor","")]
         for m in months:
             ms = r["monthly"][m]["net_sales"] or 0
             mg = r["gross_profit"] * (ms/ns) if ns else 0
@@ -1471,16 +1528,16 @@ def main():
     for v in sorted(zero_sales, key=lambda x: x["product_title"]):
         if v["product_title"] not in seen_titles:
             seen_titles.add(v["product_title"]); zs_dedup.append(v)
-    h_zs = ["updated_at","quarter","rank","product_title","sku","vendor","product_type","is_dropship"]
+    h_zs = ["updated_at","period","status","rank","product_title","sku","vendor","product_type","is_dropship"]
     write_tab(sh, f"q_zero_sales_{sfx}", h_zs,
-              [[now,label,i+1,v["product_title"],v["sku"],v["vendor"],v["product_type"],
+              [[now,label,period_status,i+1,v["product_title"],v["sku"],v["vendor"],v["product_type"],
                 "YES" if v["unit_cost"]>0 else "NO"]
                for i,v in enumerate(zs_dedup)])
 
     # ── 11. VENDORS PARETO — sorted by gross_profit ───────────────
     sorted_vend = sorted(vendor_agg.values(), key=lambda x: x["gross_profit"], reverse=True)
     total_sales_v = sum(v["gross_sales"] for v in sorted_vend) or 1
-    h_v = ["updated_at","quarter","rank","vendor","skus","units","gross_sales","discounts",
+    h_v = ["updated_at","period","status","rank","vendor","skus","units","gross_sales","discounts",
            "returns","net_sales","cogs","gross_profit","gross_margin",
            "pct_of_sales","cumulative_pct"]
     vend_rows = []; cum = 0.0
@@ -1502,7 +1559,7 @@ def main():
     print(f"\n{'='*60}")
     print(f"  DONE — {label}")
     print(f"  Net Sales: ${total_ns:,.2f} | GP: ${total_gp:,.2f} ({gp_margin}%)")
-    print(f"  Sheets written (all suffixed _{sfx}):")
+    print(f"  Sheets written (all suffixed _{sfx}) | Status: {period_status}:")
     for t in ["q_summary","q_top_sku","q_top_products","q_top_dropship",
               "q_top_margin","q_top_gp","q_cost_zero","q_cost_zero_detail",
               "q_discount_zero","q_discount_zero_detail","q_staff_orders",
