@@ -1203,28 +1203,50 @@ def sheets_call(fn, *args, **kwargs):
             raise
 
 def write_tab(sh, name, headers, rows):
-    try:    ws = sh.worksheet(name)
-    except: ws = sheets_call(sh.add_worksheet, name, rows=max(5000,len(rows)+100), cols=len(headers)+2)
-    time.sleep(2)
+    try:
+        ws = sh.worksheet(name)
+    except:
+        ws = sheets_call(
+            sh.add_worksheet,
+            title=name,
+            rows=max(len(rows)+10, 50),
+            cols=len(headers)+2
+        )
+
     all_data = [headers]
+
     for r in rows:
         clean = []
         for v in r:
-            if v is None: clean.append("")
-            elif isinstance(v,float) and v!=v: clean.append("")
-            elif isinstance(v,set): clean.append(str(len(v)))
-            else: clean.append(str(v) if not isinstance(v,(int,float,bool)) else v)
+            if v is None:
+                clean.append("")
+            elif isinstance(v, set):
+                clean.append(str(len(v)))
+            else:
+                clean.append(v)
         all_data.append(clean)
-    total = len(all_data)
-    if total>ws.row_count or len(headers)>ws.col_count:
-        sheets_call(ws.resize,rows=total+50,cols=len(headers)+2); time.sleep(1)
-    sheets_call(ws.clear); time.sleep(1)
-    BATCH=500
-    for i in range(0,total,BATCH):
-        sheets_call(ws.append_rows,all_data[i:i+BATCH],value_input_option="RAW",insert_data_option="INSERT_ROWS")
-        print(f"    {name}: {min(i+BATCH,total)}/{total}")
-        if i+BATCH<total: time.sleep(2)
-    time.sleep(3)
+
+    needed_rows = max(len(all_data)+5, 50)
+    needed_cols = len(headers)+2
+
+    # REDUCE worksheet size instead of growing forever
+    if ws.row_count != needed_rows or ws.col_count != needed_cols:
+        sheets_call(ws.resize, rows=needed_rows, cols=needed_cols)
+
+    # CLEAR OLD CONTENT
+    sheets_call(ws.clear)
+
+    # WRITE ALL AT ONCE (NO append_rows)
+    end_col = chr(64 + min(needed_cols, 26))
+    range_name = f"A1:{end_col}{len(all_data)}"
+
+    sheets_call(
+        ws.update,
+        range_name,
+        all_data,
+        value_input_option="RAW"
+    )
+
     print(f"    ✓ {name}: {len(rows)} rows")
 
 # ── MAIN ──────────────────────────────────────────────────────────
