@@ -1,1 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Corro — Period Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0C1B2E;--navy2:#142033;--navy3:#1A2A40;
+  --green3:#3DBF7A;--gold2:#D4A017;
+  --tx:#F2F1ED;--tx2:#B8B7B0;--tx3:#7A7972;
+  --bd:#2A3748;--bd2:#364455;
+  --sf:#111A28;--sf2:#162030;--sf3:#1C2A3A;
+}
+[data-theme="light"]{
+  --navy:#0C1B2E;--green3:#27A558;--gold2:#A8790A;
+  --tx:#0C1B2E;--tx2:#3D4F62;--tx3:#6B7D8E;
+  --bd:#D0D8E3;--bd2:#B8C4D0;
+  --sf:#FFFFFF;--sf2:#F4F6FA;--sf3:#EBEEf5;
+}
+html,body{min-height:100%;font-family:'DM Sans',sans-serif;background:var(--sf);color:var(--tx);font-size:14px}
 
+/* TOPBAR */
+.topbar{background:var(--navy);display:flex;align-items:center;justify-content:space-between;padding:14px 28px;gap:16px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.06)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-logo{width:22px;height:22px;background:var(--green3);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.brand-logo svg{width:12px;height:12px}
+.brand-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:#fff;letter-spacing:-.01em}
+.brand-div{width:1px;height:16px;background:rgba(255,255,255,.2)}
+.brand-sub{font-size:11px;color:rgba(255,255,255,.5);font-weight:500;letter-spacing:.04em;text-transform:uppercase}
+.top-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sg{display:flex;flex-direction:column;gap:2px}
+.sl-lbl{font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em}
+select.ps{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:6px 28px 6px 10px;cursor:pointer;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(255,255,255,0.5)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;min-width:120px;transition:border-color .15s}
+select.ps:focus{border-color:var(--green3)}
+select.ps option{background:#1A2A40;color:#fff}
+.btn-top{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);cursor:pointer;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.btn-top:hover{border-color:var(--green3);color:var(--green3)}
+.tbtn-top{width:30px;height:30px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.pb-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.5);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:3px 12px;margin-left:8px}
+.pb-dot{width:6px;height:6px;border-radius:50%;background:var(--green3);flex-shrink:0}
+
+/* CONTENT */
+.content{padding:20px 28px}
+
+/* TABS */
+.tab-nav{display:flex;gap:2px;flex-wrap:wrap;margin-bottom:20px;padding:4px;background:var(--sf2);border:1px solid var(--bd);border-radius:10px}
+.tbn{font-size:11px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer;border:none;background:transparent;color:var(--tx3);font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.tbn.on{background:var(--navy);color:#fff}
+[data-theme="light"] .tbn.on{background:var(--navy);color:#fff}
+.tbn:hover:not(.on){background:var(--sf3);color:var(--tx2)}
+.tbn-pill{font-size:9px;background:rgba(255,255,255,.15);border-radius:10px;padding:1px 5px;font-weight:700}
+.tbn:not(.on) .tbn-pill{background:var(--bd);color:var(--tx3)}
+.tp{display:none}.tp.on{display:block}
+
+/* KPI GRID */
+.kg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.kc{background:var(--sf2);border:1px solid var(--bd);border-top:2px solid var(--kc,var(--bd));border-radius:11px;padding:14px 16px}
+.kl{font-size:9px;color:var(--tx3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.kv{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.04em;line-height:1}
+.ks{font-size:10px;color:var(--tx3);margin-top:3px}
+
+/* MONTHLY CARDS */
+.mg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.mc{background:var(--sf2);border:1px solid var(--bd);border-radius:11px;padding:14px 16px}
+.mn{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--tx);margin-bottom:10px}
+.mr{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:5px 0;border-bottom:1px solid var(--bd)}
+.mr:last-child{border-bottom:none;padding-top:7px;font-weight:600}
+.mr span:first-child{color:var(--tx3)}
+.mr span:last-child{font-family:'DM Mono',monospace;font-size:11px}
+
+/* SECTION DIVIDER */
+.sec{display:flex;align-items:center;gap:10px;margin:18px 0 12px}
+.sn{font-family:'Syne',sans-serif;font-size:9px;font-weight:700;color:var(--tx3);letter-spacing:.15em;text-transform:uppercase;white-space:nowrap}
+.sl{flex:1;height:1px;background:var(--bd)}
+.st{font-size:9px;font-weight:600;color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+
+/* TABLES */
+.tw{background:var(--sf2);border:1px solid var(--bd);border-radius:11px;overflow:hidden;margin-bottom:12px}
+.th{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bd);gap:10px;flex-wrap:wrap}
+.tt{font-size:13px;font-weight:600;color:var(--tx)}
+.tn{font-size:10px;color:var(--tx3)}
+.ts{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--bd);background:var(--sf3);white-space:nowrap}
+thead th.r{text-align:right}
+thead th.gp{color:var(--green3);border-left:2px solid rgba(61,191,122,.2)}
+thead th.dc{color:#F87171;border-left:2px solid rgba(248,113,113,.2)}
+tbody tr{border-bottom:1px solid var(--bd);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--sf3)}
+td{padding:7px 10px;color:var(--tx2);vertical-align:middle;white-space:nowrap}
+td.r{text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--tx)}
+td.nm{color:var(--tx);font-weight:500;max-width:210px;white-space:normal}
+td.nm small{display:block;font-size:10px;color:var(--tx3);font-weight:400;margin-top:1px}
+td.gps{border-left:2px solid rgba(61,191,122,.12)}
+td.dcs{border-left:2px solid rgba(248,113,113,.12)}
+.bdg{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600}
+.dy{background:rgba(52,163,106,.15);color:var(--green3);border:1px solid rgba(52,163,106,.3)}
+.dn{background:var(--sf3);color:var(--tx3);border:1px solid var(--bd)}
+
+/* TOTALS ROW */
+tr.tot-row td{background:var(--sf3);border-top:2px solid var(--bd2);font-weight:700;color:var(--tx)}
+tr.tot-row td.lbl{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);font-family:'DM Sans',sans-serif;font-weight:600}
+tr.tot-row td.r{font-family:'DM Mono',monospace;font-size:11px}
+tr.tot-row td.r.pos{color:var(--green3)}
+tr.tot-row td.r.neg{color:#F87171}
+tr.tot-row td.r.gld{color:var(--gold2)}
+
+/* BAR */
+.bm{display:flex;align-items:center;gap:6px}
+.bb{width:60px;height:3px;background:var(--sf3);border-radius:2px;overflow:hidden;flex-shrink:0}
+.bf{height:100%;border-radius:2px}
+
+/* FILTER BAR */
+.filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.filter-lbl{font-size:11px;color:var(--tx3);font-weight:600;white-space:nowrap}
+.filter-inp{font-family:'DM Sans',sans-serif;font-size:12px;color:var(--tx);background:var(--sf2);border:1px solid var(--bd2);border-radius:7px;padding:6px 10px;outline:none;width:240px;transition:border-color .15s}
+.filter-inp:focus{border-color:var(--green3)}
+select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx);background:var(--sf2);border:1px solid var(--bd2);border-radius:7px;padding:5px 24px 5px 8px;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='9' height='5' viewBox='0 0 9 5' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l3.5 3 3.5-3' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+.fcount{font-size:10px;color:var(--tx3);white-space:nowrap}
+
+/* LOADING */
+.empty{padding:32px;text-align:center;font-size:12px;color:var(--tx3)}
+.loading-anim{display:inline-flex;gap:4px;align-items:center}
+.loading-anim span{width:6px;height:6px;border-radius:50%;background:var(--green3);animation:bounce .8s ease infinite}
+.loading-anim span:nth-child(2){animation-delay:.15s}
+.loading-anim span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,80%,100%{transform:scale(0.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* OVERLAY */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:12px;backdrop-filter:blur(6px)}
+.ov.show{display:flex}
+.spi{width:32px;height:32px;border:2px solid rgba(61,191,122,.3);border-top-color:var(--green3);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.ovt{font-size:13px;color:#fff;background:rgba(255,255,255,.1);padding:8px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.15)}
+
+/* TOOLTIP */
+.info-tip{position:relative;display:inline-flex;align-items:center;cursor:help}
+.info-tip .tip-icon{width:14px;height:14px;border-radius:50%;border:1px solid var(--tx3);color:var(--tx3);font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.info-tip .tip-box{display:none;position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:11px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.1);width:220px;white-space:normal;line-height:1.5;z-index:100}
+.info-tip:hover .tip-box{display:block}
+
+/* ── SHARED SIDEBAR/DETAIL LAYOUT ── */
+.dz-layout{display:grid;grid-template-columns:260px 1fr;gap:12px;align-items:start}
+.dz-sidebar{display:flex;flex-direction:column;gap:8px;position:sticky;top:12px}
+
+/* Compact KPIs on top */
+.dz-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.dz-kpi{background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:12px 14px}
+.dz-kpi-lbl{font-size:9px;color:var(--tx3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.dz-kpi-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.dz-kpi-sub{font-size:10px;color:var(--tx3);margin-top:2px}
+
+/* Category / product cards — sidebar */
+.zc{background:var(--sf2);border:1px solid var(--bd);border-left:3px solid var(--zclr,var(--bd));border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .12s}
+.zc:hover{background:var(--sf3);border-left-width:4px}
+.zc.active{background:var(--sf3);border-left-width:4px}
+.zcat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.zc-row{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;margin-top:3px}
+.zc-row span:first-child{color:var(--tx3)}
+.zc-row span:last-child{font-family:'DM Mono',monospace;font-size:11px}
+.zc-units{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:4px}
+
+/* Right detail panel */
+.dz-detail{background:var(--sf2);border:1px solid var(--bd);border-radius:11px;overflow:hidden}
+.dz-det-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--bd);gap:10px;flex-wrap:wrap;background:var(--sf3)}
+.dz-det-title{font-size:12px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:8px}
+.dz-cat-badge{display:inline-flex;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.04em}
+.dz-search-row{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--bd);background:var(--sf2)}
+.dz-search-inp{flex:1;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--tx);background:var(--sf3);border:1px solid var(--bd);border-radius:7px;padding:5px 10px;outline:none;transition:border-color .15s}
+.dz-search-inp:focus{border-color:var(--green3)}
+.dz-table-wrap{overflow:auto;max-height:calc(100vh - 260px);min-height:300px}
+
+/* Totals row in sidebar */
+.zc-total-all{background:var(--sf3);border:1px solid var(--bd2);border-radius:10px;padding:11px 14px;margin-top:4px}
+.zc-total-lbl{font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.zc-total-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)}
+.zc-total-row:last-child{border-bottom:none;font-weight:700;padding-top:5px}
+.zc-total-row span:first-child{color:var(--tx3)}
+.zc-total-row span:last-child{font-family:'DM Mono',monospace}
+
+/* ── ORDER DETAIL MODAL ── */
+.order-detail-panel{background:var(--sf3);border-top:1px solid var(--bd);padding:16px}
+.order-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px}
+.od-kpi{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 12px}
+.od-kpi-lbl{font-size:9px;color:var(--tx3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.od-kpi-val{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:var(--tx)}
+
+/* Clickable row in cost-zero list */
+.cz-order-row{cursor:pointer}
+.cz-order-row:hover td{background:rgba(61,191,122,.05)!important}
+
+.foot{margin-top:24px;font-size:10px;color:var(--tx3);text-align:center;padding:0 28px}
+
+@media(max-width:900px){
+  .dz-layout{grid-template-columns:1fr}
+  .dz-sidebar{position:static}
+  .dz-table-wrap{max-height:400px}
+}
+@media(max-width:700px){
+  .mg{grid-template-columns:1fr}
+  .kg{grid-template-columns:repeat(2,1fr)}
+  .dz-kpis{grid-template-columns:1fr}
+  .content{padding:14px}
+  .topbar{padding:12px 16px}
+}
+</style>
+</head>
+<body>
+<div class="ov" id="ov"><div class="spi"></div><div class="ovt" id="ovt">Loading...</div></div>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-logo">
+      <svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#fff" stroke-width="1.2"/><path d="M4 6h4M6 4v4" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="brand-name">Corro</div>
+    <div class="brand-div"></div>
+    <div class="brand-sub">Period Report</div>
+    <div class="pb-badge"><div class="pb-dot"></div><span id="pb">—</span></div><div class="pb-badge" id="pst"><div class="pb-dot" style="background:var(--gold2)"></div><span>—</span></div>
+  </div>
+  <div class="top-controls">
+    <div class="sg"><div class="sl-lbl">Year</div>
+      <select class="ps" id="sy" onchange="buildWeekOptions();render()">
+        <option value="2026" selected>2026</option>
+      </select>
+    </div>
+    <div class="sg"><div class="sl-lbl">Period</div>
+      <select class="ps" id="sp" onchange="updatePeriodControls();render()">
+        <option value="quarter" selected>Quarter</option>
+        <option value="month">Month</option>
+        <option value="week">Week</option>
+        <option value="ytd">YTD</option>
+      </select>
+    </div>
+    <div class="sg period-control" id="grp-q"><div class="sl-lbl">Quarter</div>
+      <select class="ps" id="sq" onchange="render()">
+        <option value="q1">Q1 — Jan–Mar</option>
+        <option value="q2" selected>Q2 — Apr–Jun</option>
+        <option value="q3">Q3 — Jul–Sep</option>
+        <option value="q4">Q4 — Oct–Dec</option>
+      </select>
+    </div>
+    <div class="sg period-control" id="grp-m" style="display:none"><div class="sl-lbl">Month</div>
+      <select class="ps" id="sm" onchange="render()"></select>
+    </div>
+    <div class="sg period-control" id="grp-w" style="display:none"><div class="sl-lbl">Week</div>
+      <select class="ps" id="sw" onchange="render()"></select>
+    </div>
+    <button class="btn-top" onclick="forceRefresh()">
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M10 6a4 4 0 1 1-.8-2.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 2v2.5H7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Refresh
+    </button>
+    <button class="tbtn-top" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">☀</button>
+  </div>
+</div>
+
+<div class="content">
+
+<div class="tab-nav">
+  <button class="tbn on" data-tab="summary">Summary</button>
+  <button class="tbn" data-tab="products">Top Products</button>
+  <button class="tbn" data-tab="sku">By SKU <span class="tbn-pill" id="pill-sku"></span></button>
+  <button class="tbn" data-tab="dropship">Dropship</button>
+  <button class="tbn" data-tab="margin">Best Margin</button>
+  <button class="tbn" data-tab="gp">Top GP</button>
+  <button class="tbn" data-tab="monthly">Monthly</button>
+  <button class="tbn" data-tab="vendors">Vendors</button>
+  <button class="tbn" data-tab="costzero">Cost Zero</button>
+  <button class="tbn" data-tab="disczero">100% Discount</button>
+  <button class="tbn" data-tab="staff">Staff</button>
+  <button class="tbn" data-tab="nosales">No Activity</button>
+</div>
+
+<!-- SUMMARY -->
+<div class="tp on" id="tp-summary">
+  <div class="kg">
+    <div class="kc" style="--kc:var(--green3)"><div class="kl">Gross Sales</div><div class="kv" id="k-gs">—</div><div class="ks">Before discounts</div></div>
+    <div class="kc" style="--kc:#F87171"><div class="kl">Discounts</div><div class="kv" id="k-disc">—</div><div class="ks" id="k-disc-s">—</div></div>
+    <div class="kc" style="--kc:var(--gold2)"><div class="kl">Returns</div><div class="kv" id="k-ret">—</div><div class="ks">Refunded</div></div>
+    <div class="kc" style="--kc:var(--green3)"><div class="kl">Net Sales</div><div class="kv" id="k-ns">—</div><div class="ks">After discounts & returns</div></div>
+    <div class="kc" style="--kc:var(--green3)"><div class="kl">Gross Profit</div><div class="kv" id="k-gp">—</div><div class="ks" id="k-gp-s">—</div></div>
+    <div class="kc" style="--kc:var(--tx3)"><div class="kl">Units Sold</div><div class="kv" id="k-units">—</div></div>
+    <div class="kc" style="--kc:var(--tx3)"><div class="kl">Orders</div><div class="kv" id="k-orders">—</div></div>
+    <div class="kc" style="--kc:var(--tx3)"><div class="kl">Updated</div><div class="kv" style="font-size:13px;margin-top:4px" id="k-upd">—</div></div>
+  </div>
+  <div class="sec"><div class="sn">Monthly Breakdown</div><div class="sl"></div><div class="st" id="sum-months-label"></div></div>
+  <div class="mg" id="mg"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div>
+</div>
+
+<!-- TOP PRODUCTS -->
+<div class="tp" id="tp-products">
+  <div class="tw">
+    <div class="th">
+      <div><div class="tt">Top 100 Products — All · ranked by Gross Profit</div><div class="tn">Grouped by product. Sorted by GP$.</div></div>
+      <div class="tn" id="n-products">—</div>
+    </div>
+    <div style="padding:10px 16px;border-bottom:1px solid var(--bd)">
+      <div class="filter-bar" style="margin-bottom:0">
+        <div class="filter-lbl">Filter:</div>
+        <input class="filter-inp" id="fi-products" oninput="filterTable('products')" placeholder="Product, vendor, type…" style="width:240px">
+        <select class="filter-sel" id="fs-products" onchange="filterTable('products')"><option value="">All vendors</option></select>
+        <span class="fcount" id="fc-products"></span>
+      </div>
+    </div>
+    <div class="ts"><div id="t-products"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div>
+  </div>
+</div>
+
+<!-- BY SKU -->
+<div class="tp" id="tp-sku">
+  <div class="tw">
+    <div class="th">
+      <div>
+        <div class="tt" style="display:flex;align-items:center;gap:7px">Top 100 by SKU — individual variants
+          <div class="info-tip"><div class="tip-icon">?</div><div class="tip-box"><strong>Products</strong> groups sizes/colors → total by product.<br><br><strong>By SKU</strong> shows each variant separately → useful for seeing which specific size sells the most.</div></div>
+        </div>
+        <div class="tn">Each row = one specific variant/SKU.</div>
+      </div>
+      <div class="tn" id="n-sku">—</div>
+    </div>
+    <div style="padding:10px 16px;border-bottom:1px solid var(--bd)">
+      <div class="filter-bar" style="margin-bottom:0">
+        <div class="filter-lbl">Filter:</div>
+        <input class="filter-inp" id="fi-sku" oninput="filterTable('sku')" placeholder="Product, SKU, vendor…" style="width:240px">
+        <select class="filter-sel" id="fs-sku" onchange="filterTable('sku')"><option value="">All vendors</option></select>
+        <span class="fcount" id="fc-sku"></span>
+      </div>
+    </div>
+    <div class="ts"><div id="t-sku"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div>
+  </div>
+</div>
+
+<!-- DROPSHIP -->
+<div class="tp" id="tp-dropship">
+  <div class="tw"><div class="th"><div class="tt">Top 100 Dropship</div><div class="tn" id="n-dropship">—</div></div>
+  <div class="ts"><div id="t-dropship"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div></div>
+</div>
+
+<!-- BEST MARGIN -->
+<div class="tp" id="tp-margin">
+  <div class="tw"><div class="th"><div class="tt">Top 100 by Gross Margin % — min 5 units</div><div class="tn" id="n-margin">—</div></div>
+  <div class="ts"><div id="t-margin"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div></div>
+</div>
+
+<!-- TOP GP -->
+<div class="tp" id="tp-gp">
+  <div class="tw"><div class="th"><div class="tt">Top 100 by Gross Profit $</div><div class="tn" id="n-gp">—</div></div>
+  <div class="ts"><div id="t-gp"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div></div>
+</div>
+
+<!-- MONTHLY -->
+<div class="tp" id="tp-monthly">
+  <div class="tw">
+    <div class="th"><div><div class="tt">Monthly Breakdown</div><div class="tn">Sales, units, and margin by month per product.</div></div><div class="tn" id="n-monthly">—</div></div>
+    <div class="ts"><div id="t-monthly"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div>
+  </div>
+</div>
+
+<!-- VENDORS -->
+<div class="tp" id="tp-vendors">
+  <div class="tw"><div class="th"><div class="tt">Vendors — Pareto 80/20 by Gross Profit</div><div class="tn" id="n-vendors">—</div></div>
+  <div class="ts"><div id="t-vendors"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div></div>
+</div>
+
+<!-- ═══════════════ COST ZERO — full redesign ═══════════════ -->
+<div class="tp" id="tp-costzero">
+
+  <!-- Top KPIs -->
+  <div class="dz-kpis">
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Products with no COGS</div>
+      <div class="dz-kpi-val" id="cz-tot-prods" style="color:#F87171">—</div>
+      <div class="dz-kpi-sub">sold this quarter</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Gross Sales (no cost)</div>
+      <div class="dz-kpi-val" id="cz-tot-gs" style="color:var(--green3)">—</div>
+      <div class="dz-kpi-sub">revenue without COGS loaded</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Total Discounts Applied</div>
+      <div class="dz-kpi-val" id="cz-tot-disc" style="color:#F87171">—</div>
+      <div class="dz-kpi-sub">on Cost Zero products</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Estimated Gross Profit</div>
+      <div class="dz-kpi-val" id="cz-tot-gp" style="color:var(--green3)">—</div>
+      <div class="dz-kpi-sub">inflated — no real COGS</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Units Sold</div>
+      <div class="dz-kpi-val" id="cz-tot-units" style="color:var(--tx)">—</div>
+      <div class="dz-kpi-sub">total for the period</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Orders</div>
+      <div class="dz-kpi-val" id="cz-tot-ords" style="color:var(--tx)">—</div>
+      <div class="dz-kpi-sub">containing Cost Zero items</div>
+    </div>
+  </div>
+
+  <!-- Side-by-side layout -->
+  <div class="dz-layout">
+
+    <!-- Product list (left sidebar) -->
+    <div class="dz-sidebar">
+      <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Products — click to see order detail</div>
+      <div id="cz-prod-list"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div>
+    </div>
+
+    <!-- Detail panel (right) — shows orders for selected product -->
+    <div class="dz-detail">
+      <div class="dz-det-head">
+        <div class="dz-det-title">
+          Order detail
+          <span class="dz-cat-badge" id="cz-active-badge" style="display:none"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="fcount" id="cz-ord-count">Select a product</span>
+          <button class="btn-top" onclick="clearCzFilter()" id="cz-clear-btn" style="font-size:10px;padding:3px 10px;display:none">✕ Clear</button>
+        </div>
+      </div>
+      <!-- Search inside the detail panel -->
+      <div class="dz-search-row" id="cz-search-row" style="display:none">
+        <input class="dz-search-inp" id="cz-search" oninput="filterCzDetail()" placeholder="Search order, customer, SKU…">
+      </div>
+      <div class="dz-table-wrap">
+        <div id="t-costzero-detail">
+          <div class="empty" style="color:var(--tx3)">← Select a product to see its real orders from Shopify</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ 100% DISCOUNT ═══════════════ -->
+<div class="tp" id="tp-disczero">
+
+  <div class="dz-kpis">
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Total free units</div>
+      <div class="dz-kpi-val" id="dz-tot-units" style="color:var(--green3)">—</div>
+      <div class="dz-kpi-sub">all categories</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">100% discount value</div>
+      <div class="dz-kpi-val" id="dz-tot-disc" style="color:#F87171">—</div>
+      <div class="dz-kpi-sub">discount amount not charged</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">COGS (free item cost)</div>
+      <div class="dz-kpi-val" id="dz-tot-cogs" style="color:var(--gold2)">—</div>
+      <div class="dz-kpi-sub">cost of free items</div>
+    </div>
+  </div>
+
+  <div class="dz-layout">
+    <div class="dz-sidebar" id="dz-sidebar">
+      <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Categories — click to filter</div>
+      <div id="dz-cards">
+        <div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div>
+      </div>
+      <div class="zc-total-all" id="dz-sidebar-total" style="display:none">
+        <div class="zc-total-lbl">Global total</div>
+        <div id="dz-sidebar-total-rows"></div>
+      </div>
+    </div>
+
+    <div class="dz-detail">
+      <div class="dz-det-head">
+        <div class="dz-det-title">
+          100% discount detail
+          <span class="dz-cat-badge" id="dz-active-badge" style="display:none"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="fcount" id="dz-count"></span>
+          <button class="btn-top" onclick="clearDzFilter()" id="dz-clear-btn" style="font-size:10px;padding:3px 10px;display:none">✕ Clear</button>
+        </div>
+      </div>
+      <div class="dz-search-row">
+        <input class="dz-search-inp" id="dz-search" oninput="filterDiscZero()" placeholder="Search product, order, customer, vendor, tags…">
+      </div>
+      <div class="dz-table-wrap">
+        <div id="t-disczero"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ STAFF / INTERNAL AUDIT ═══════════════ -->
+<div class="tp" id="tp-staff">
+  <div class="dz-kpis" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Staff members</div>
+      <div class="dz-kpi-val" id="st-tot-people" style="color:var(--green3)">—</div>
+      <div class="dz-kpi-sub">GraphQL createdBy identified</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Staff orders</div>
+      <div class="dz-kpi-val" id="st-tot-orders" style="color:var(--tx)">—</div>
+      <div class="dz-kpi-sub">unique orders</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Line items</div>
+      <div class="dz-kpi-val" id="st-tot-lines" style="color:var(--tx)">—</div>
+      <div class="dz-kpi-sub">internal / employee tagged items</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Expected payment</div>
+      <div class="dz-kpi-val" id="st-tot-expected" style="color:var(--gold2)">—</div>
+      <div class="dz-kpi-sub">COGS + 10% per item</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Net paid</div>
+      <div class="dz-kpi-val" id="st-tot-paid" style="color:var(--green3)">—</div>
+      <div class="dz-kpi-sub">item amount after discounts</div>
+    </div>
+    <div class="dz-kpi">
+      <div class="dz-kpi-lbl">Payment gap</div>
+      <div class="dz-kpi-val" id="st-tot-gap" style="color:#F87171">—</div>
+      <div class="dz-kpi-sub">underpaid vs expected</div>
+    </div>
+  </div>
+
+  <!-- Staff by person summary -->
+  <div class="dz-layout" style="margin-bottom:12px">
+    <div class="dz-sidebar">
+      <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Staff members — click to filter</div>
+      <div id="st-people-list"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div>
+    </div>
+    <div class="dz-detail">
+      <div class="dz-det-head">
+        <div class="dz-det-title">
+          Staff order detail
+          <span class="dz-cat-badge" id="st-active-badge" style="display:none"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="fcount" id="st-line-count">—</span>
+          <button class="btn-top" onclick="clearStFilter()" id="st-clear-btn" style="font-size:10px;padding:3px 10px;display:none">✕ Clear</button>
+        </div>
+      </div>
+      <div class="dz-search-row">
+        <input class="dz-search-inp" id="st-search" oninput="filterStaff()" placeholder="Search order, product, customer, creator, tags…">
+      </div>
+      <div class="dz-table-wrap">
+        <div id="t-staff"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NO ACTIVITY -->
+<div class="tp" id="tp-nosales">
+  <div class="tw"><div class="th"><div class="tt">Zero Sales / No Activity — Products not sold this quarter</div><div class="tn" id="n-nosales">—</div></div>
+  <div class="ts"><div id="t-nosales"><div class="empty"><div class="loading-anim"><span></span><span></span><span></span></div></div></div></div></div>
+</div>
+
+</div><!-- /content -->
+
+<div class="foot">Shopify API → Google Sheets → corro_period.py &nbsp;·&nbsp; <span id="fl">—</span> &nbsp;·&nbsp; <span id="upd-at">—</span></div>
+
+<script>
+const SHEET_ID="1uXrkOcmo9cJmO9z_TTDacDDW5EZ2IvVZMvzIUWQG__Y";
+const AKEY="AIzaSyCGlCZ9GMVP3_bdHQt1kOg1C8IUblxT_Uc";
+let cache={};
+
+// ── Cost Zero state ──
+let _czRows=[];          // q_cost_zero rows
+let _czDetailRows=[];    // q_cost_zero_detail rows (real orders for cost-zero products)
+let _czActiveProd="";
+let _czFilteredDetail=[];
+
+// ── Disc Zero state ──
+let _dzAllRows=[];
+let _dzActiveCat="";
+
+// ── Staff state ──
+let _stAllRows=[];
+let _stActivePerson="";
+
+const G=id=>document.getElementById(id);
+const f$=v=>{const n=parseFloat(v)||0;const neg=n<0;const a=Math.abs(n);let s;if(a>=1e6)s="$"+(a/1e6).toFixed(2)+"M";else if(a>=1000)s="$"+(a/1000).toFixed(1)+"K";else s="$"+Math.round(a).toLocaleString();return neg?"-"+s:s;};
+const fN=v=>{const n=parseInt(v)||0;return n>=1000?(n/1000).toFixed(1)+"K":n.toLocaleString();};
+const fM=v=>{const n=parseFloat(v)||0;return(n*100).toFixed(1)+"%";};
+const nval=(r,...keys)=>{for(const k of keys){if(r&&r[k]!==undefined&&r[k]!==null&&r[k]!==""){return parseFloat(r[k])||0;}}return 0;};
+const gC=v=>{const n=parseFloat(v)||0;return n<0?"#F87171":n<0.12?"var(--gold2)":"var(--green3)";};
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const TODAY=new Date();
+const START_YEAR=2026;
+
+function isoWeek(d){
+  const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const dayNum=date.getUTCDay()||7;
+  date.setUTCDate(date.getUTCDate()+4-dayNum);
+  const yearStart=new Date(Date.UTC(date.getUTCFullYear(),0,1));
+  return Math.ceil((((date-yearStart)/86400000)+1)/7);
+}
+function weeksInYear(y){return isoWeek(new Date(y,11,28));}
+function isCurrentPeriod(){
+  const y=parseInt(G("sy").value,10), p=G("sp").value;
+  const nowY=TODAY.getFullYear();
+  if(y!==nowY) return false;
+  if(p==="ytd") return true;
+  if(p==="month") return parseInt(G("sm").value,10)===(TODAY.getMonth()+1);
+  if(p==="week") return parseInt(G("sw").value,10)===isoWeek(TODAY);
+  const q=Math.floor(TODAY.getMonth()/3)+1;
+  return G("sq").value===`q${q}`;
+}
+function periodStatus(){return isCurrentPeriod()?"IN PROCESS":"CLOSED";}
+const getSfx=()=>{
+  const p=G("sp").value,y=G("sy").value;
+  if(p==="month") return `m${String(G("sm").value).padStart(2,"0")}_${y}`;
+  if(p==="week") return `w${String(G("sw").value).padStart(2,"0")}_${y}`;
+  if(p==="ytd") return `ytd_${y}`;
+  return `${G("sq").value}_${y}`;
+};
+const getLbl=()=>{
+  const p=G("sp").value,y=G("sy").value;
+  if(p==="month") return `${MONTHS[parseInt(G("sm").value,10)-1]} ${y}`;
+  if(p==="week") return `Week ${String(G("sw").value).padStart(2,"0")} ${y}`;
+  if(p==="ytd") return `YTD ${y}`;
+  const q=G("sq").value;const m={q1:"Jan–Mar",q2:"Apr–Jun",q3:"Jul–Sep",q4:"Oct–Dec"};return`${q.toUpperCase()} ${y} · ${m[q]}`;
+};
+const getMN=()=>{
+  const p=G("sp").value;
+  if(p==="month") return [MONTHS[parseInt(G("sm").value,10)-1]];
+  if(p==="week"){
+    const y=parseInt(G("sy").value,10), w=parseInt(G("sw").value,10);
+    const start=new Date(Date.UTC(y,0,1+(w-1)*7));
+    const day=start.getUTCDay()||7;
+    start.setUTCDate(start.getUTCDate()+1-day);
+    const end=new Date(start);end.setUTCDate(start.getUTCDate()+6);
+    const arr=[MONTHS[start.getUTCMonth()]];
+    if(end.getUTCMonth()!==start.getUTCMonth()) arr.push(MONTHS[end.getUTCMonth()]);
+    return arr;
+  }
+  if(p==="ytd") return MONTHS.slice(0,TODAY.getFullYear()==parseInt(G("sy").value,10)?TODAY.getMonth()+1:12);
+  const q=G("sq").value;return{q1:["January","February","March"],q2:["April","May","June"],q3:["July","August","September"],q4:["October","November","December"]}[q];
+};
+
+function buildMonthOptions(){
+  const sm=G("sm"); if(!sm) return;
+  sm.innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}" ${i===TODAY.getMonth()?"selected":""}>${String(i+1).padStart(2,"0")} — ${m}</option>`).join("");
+}
+function buildWeekOptions(){
+  const sw=G("sw"); if(!sw) return;
+  const y=parseInt(G("sy").value,10);
+  const max=weeksInYear(y);
+  const currentWeek=isoWeek(TODAY);
+  sw.innerHTML=Array.from({length:max},(_,i)=>{
+    const w=i+1;
+    return `<option value="${w}" ${w===currentWeek?"selected":""}>Week ${String(w).padStart(2,"0")}</option>`;
+  }).join("");
+}
+function updatePeriodControls(){
+  const p=G("sp").value;
+  G("grp-q").style.display=p==="quarter"?"flex":"none";
+  G("grp-m").style.display=p==="month"?"flex":"none";
+  G("grp-w").style.display=p==="week"?"flex":"none";
+}
+
+document.querySelectorAll(".tbn").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".tbn").forEach(b=>b.classList.remove("on"));
+    document.querySelectorAll(".tp").forEach(p=>p.classList.remove("on"));
+    btn.classList.add("on");
+    G(`tp-${btn.dataset.tab}`)?.classList.add("on");
+  });
+});
+
+function parseCSV(t){
+  const rows=[];let row=[],f="",inQ=false;
+  for(let i=0;i<t.length;i++){const c=t[i],nc=t[i+1];
+    if(inQ){if(c==='"'&&nc==='"'){f+='"';i++;}else if(c==='"'){inQ=false;}else f+=c;}
+    else{if(c==='"'){inQ=true;}else if(c===','){row.push(f);f="";}
+      else if(c==='\r'&&nc==='\n'){row.push(f);rows.push(row);row=[];f="";i++;}
+      else if(c==='\n'||c==='\r'){row.push(f);rows.push(row);row=[];f="";}
+      else f+=c;}}
+  if(f||row.length){row.push(f);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim()!==""));
+}
+
+async function ft(tab){
+  if(cache[tab])return cache[tab];
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(tab)}?key=${AKEY}`);
+    if(r.ok){const d=await r.json();if(!d.error&&d.values&&d.values.length>=2){const h=d.values[0];const res=d.values.slice(1).map(row=>{const o={};h.forEach((k,i)=>o[k]=row[i]||"");return o;});cache[tab]=res;setTimeout(()=>delete cache[tab],5*60*1000);return res;}}
+  }catch(e){}
+  try{
+    const r=await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`);
+    if(!r.ok)return[];
+    const text=await r.text();
+    if(!text||text.trim().startsWith("<"))return[];
+    const rows=parseCSV(text);
+    if(rows.length<2)return[];
+    const h=rows[0];
+    const res=rows.slice(1).map(row=>{const o={};h.forEach((k,i)=>o[k]=(row[i]||"").trim());return o;});
+    cache[tab]=res;setTimeout(()=>delete cache[tab],5*60*1000);return res;
+  }catch(e){return[];}
+}
+
+// ── SUMMARY ──────────────────────────────────────────────────────
+function rSummary(rows){
+  if(!rows||!rows.length){G("mg").innerHTML=`<div class="empty">No data — run corro_period.py first</div>`;return;}
+  const allKeys=Object.keys(rows[0]);
+  const metricKey=allKeys.find(k=>k.toLowerCase()==="metric")||"metric";
+  const totalKey=allKeys.find(k=>k.toLowerCase()==="total")||allKeys.find(k=>k.toLowerCase().includes("total"))||allKeys[allKeys.length-1];
+  const monthKeys=allKeys.filter(k=>!["updated_at","quarter","period","status","metric"].includes(k.toLowerCase())&&!k.toLowerCase().includes("total")&&k.trim()!=="");
+  const get=(m,col)=>{const row=rows.find(r=>(r[metricKey]||"").trim()===m);if(!row)return"0";if(col)return row[col]||"0";return row[totalKey]||"0";};
+  const gs=parseFloat(get("Gross Sales"))||0,disc=parseFloat(get("Discounts"))||0,ret=parseFloat(get("Returns"))||0;
+  const ns=parseFloat(get("Net Sales"))||0,gp=parseFloat(get("Gross Profit"))||0;
+  G("k-gs").textContent=f$(gs);G("k-disc").textContent=f$(Math.abs(disc));
+  G("k-disc-s").textContent=gs>0?((Math.abs(disc)/gs)*100).toFixed(1)+"% of gross":"—";
+  G("k-ret").textContent=f$(Math.abs(ret));G("k-ns").textContent=f$(ns);G("k-gp").textContent=f$(gp);
+  G("k-gp-s").textContent=ns>0?((gp/ns)*100).toFixed(1)+"% GP margin":"—";
+  G("k-units").textContent=fN(parseInt(get("Units Sold"))||0);G("k-orders").textContent=fN(parseInt(get("Orders"))||0);
+  G("k-upd").textContent=(rows[0]?.updated_at||"").slice(0,10)||"—";
+  G("upd-at").textContent="Updated: "+(rows[0]?.updated_at||"?");
+  G("sum-months-label").textContent=monthKeys.join(" / ");
+  const el=G("mg");el.innerHTML="";
+  monthKeys.forEach(m=>{
+    const card=document.createElement("div");card.className="mc";
+    const mgs=parseFloat(get("Gross Sales",m))||0,mdisc=parseFloat(get("Discounts",m))||0,mns=parseFloat(get("Net Sales",m))||0,mgp=parseFloat(get("Gross Profit",m))||0,mu=parseInt(get("Units Sold",m))||0;
+    card.innerHTML=`<div class="mn">${m}</div>
+      <div class="mr"><span>Gross Sales</span><span>${f$(mgs)}</span></div>
+      <div class="mr"><span>Discounts</span><span style="color:#F87171">${f$(Math.abs(mdisc))}</span></div>
+      <div class="mr"><span>Net Sales</span><span>${f$(mns)}</span></div>
+      <div class="mr"><span>Gross Profit</span><span style="color:var(--green3)">${f$(mgp)}</span></div>
+      <div class="mr"><span>Units</span><span>${fN(mu)}</span></div>
+      <div class="mr"><span>Margin</span><span style="color:var(--green3)">${mns>0?((mgp/mns)*100).toFixed(1)+"%":"—"}</span></div>`;
+    el.appendChild(card);
+  });
+}
+
+// ── PRODUCT TABLE ────────────────────────────────────────────────
+function mkProdTable(rows,elId,noteId,selId,fiId){
+  const el=G(elId);
+  if(G(noteId))G(noteId).textContent=`${rows.length} products`;
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
+  if(selId&&G(selId)){const vendors=[...new Set(rows.map(r=>r.vendor||"").filter(Boolean))].sort();G(selId).innerHTML=`<option value="">All vendors</option>`+vendors.map(v=>`<option value="${v}">${v}</option>`).join("");}
+  const mC=Object.keys(rows[0]).filter(k=>k.includes("net_sales")&&k.includes(" ")&&!k.includes("Q"));
+  const mn=getMN(),mA=mn.map(m=>m.slice(0,3));
+  el.innerHTML=`<table>
+    <thead><tr>
+      <th>#</th><th>Product</th><th>Vendor</th><th>Drop</th>
+      <th class="r gp">Gross Profit</th><th class="r gp">GP%</th>
+      <th class="r">Net Sales</th><th class="r">Gross Sales</th>
+      <th class="r dc">Discounts</th><th class="r">COGS</th>
+      <th class="r">Units</th><th class="r">Orders</th>
+      ${mA.map(m=>`<th class="r">${m}</th>`).join("")}
+    </tr></thead>
+    <tbody>
+    ${rows.map((r,i)=>{
+      const gp=parseFloat(r.gross_profit||0),gm=parseFloat(r.gross_margin||0);
+      const isDrop=(r.is_dropship||"").toUpperCase()==="YES";
+      const mVals=mC.length?mC.map(c=>`<td class="r" style="color:var(--tx3)">${f$(r[c]||0)}</td>`).join(""):mA.map((_,mi)=>{const k=Object.keys(r).find(k=>k.toLowerCase().includes(mn[mi]?.toLowerCase().slice(0,3))&&k.includes("net"));return`<td class="r" style="color:var(--tx3)">${k?f$(r[k]||0):"—"}</td>`;}).join("");
+      return`<tr data-vendor="${(r.vendor||"").toLowerCase()}" data-search="${(r.product_title+" "+r.vendor+" "+(r.product_type||"")).toLowerCase()}">
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td>
+        <td class="nm">${r.product_title||"—"}<small>${r.product_type||""}</small></td>
+        <td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td>
+        <td><span class="bdg ${isDrop?"dy":"dn"}">${isDrop?"YES":"NO"}</span></td>
+        <td class="r gps" style="color:${gC(gm)};font-weight:600">${f$(gp)}</td>
+        <td class="r" style="color:${gC(gm)};font-family:'DM Mono',monospace">${fM(gm)}</td>
+        <td class="r">${f$(r.net_sales)}</td>
+        <td class="r" style="color:var(--tx3)">${f$(r.gross_sales)}</td>
+        <td class="r dcs" style="color:#F87171">${f$(r.discounts)}</td>
+        <td class="r" style="color:var(--tx3)">${f$(r.cogs)}</td>
+        <td class="r">${fN(r.units)}</td>
+        <td class="r">${fN(r.orders)}</td>
+        ${mVals}
+      </tr>`;
+    }).join("")}
+    </tbody></table>`;
+}
+
+function filterTable(key){
+  const inp=G(`fi-${key}`)?.value?.toLowerCase()||"";
+  const sel=G(`fs-${key}`)?.value?.toLowerCase()||"";
+  const body=document.querySelector(`#t-${key} tbody`);
+  if(!body)return;
+  let shown=0;
+  body.querySelectorAll("tr").forEach(tr=>{const s=tr.dataset.search||"",v=tr.dataset.vendor||"";const m=(!inp||s.includes(inp))&&(!sel||v===sel);tr.style.display=m?"":"none";if(m)shown++;});
+  const fc=G(`fc-${key}`);if(fc)fc.textContent=inp||sel?`${shown} shown`:"";
+}
+
+// ── SKU TABLE ────────────────────────────────────────────────────
+function mkSkuTable(rows,elId,noteId){
+  const el=G(elId);
+  if(G(noteId))G(noteId).textContent=`${rows.length} SKUs`;
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
+  const vendors=[...new Set(rows.map(r=>r.vendor||"").filter(Boolean))].sort();
+  G("fs-sku").innerHTML=`<option value="">All vendors</option>`+vendors.map(v=>`<option value="${v}">${v}</option>`).join("");
+  const mn=getMN(),mC=Object.keys(rows[0]).filter(k=>k.includes("net_sales")&&k.includes(" "));
+  el.innerHTML=`<table>
+    <thead><tr>
+      <th>#</th><th>Product</th><th>SKU</th><th>Vendor</th><th>Drop</th>
+      <th class="r gp">Gross Profit</th><th class="r gp">GP%</th>
+      <th class="r">Net Sales</th><th class="r dc">Discounts</th>
+      <th class="r">COGS</th><th class="r">Units</th><th class="r">Orders</th>
+      ${mn.map(m=>`<th class="r">${m.slice(0,3)}</th>`).join("")}
+    </tr></thead>
+    <tbody>
+    ${rows.map((r,i)=>{
+      const gm=parseFloat(r.gross_margin||0);const isDrop=(r.is_dropship||"").toUpperCase()==="YES";
+      const mVals=mC.length?mC.map(c=>`<td class="r" style="color:var(--tx3)">${f$(r[c]||0)}</td>`).join(""):mn.map(m=>{const k=Object.keys(r).find(k=>k.toLowerCase().includes(m.toLowerCase().slice(0,3))&&k.includes("net"));return`<td class="r" style="color:var(--tx3)">${k?f$(r[k]||0):"—"}</td>`;}).join("");
+      return`<tr data-vendor="${(r.vendor||"").toLowerCase()}" data-search="${(r.product_title+" "+(r.sku||"")+" "+r.vendor).toLowerCase()}">
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td>
+        <td class="nm">${r.product_title||"—"}<small>${r.product_type||""}</small></td>
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td>
+        <td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td>
+        <td><span class="bdg ${isDrop?"dy":"dn"}">${isDrop?"YES":"NO"}</span></td>
+        <td class="r gps" style="color:${gC(gm)};font-weight:600">${f$(r.gross_profit)}</td>
+        <td class="r" style="color:${gC(gm)};font-family:'DM Mono',monospace">${fM(gm)}</td>
+        <td class="r">${f$(r.net_sales)}</td>
+        <td class="r dcs" style="color:#F87171">${f$(r.discounts)}</td>
+        <td class="r" style="color:var(--tx3)">${f$(r.cogs)}</td>
+        <td class="r">${fN(r.units)}</td>
+        <td class="r">${fN(r.orders)}</td>
+        ${mVals}
+      </tr>`;
+    }).join("")}
+    </tbody></table>`;
+}
+
+// ── MONTHLY ──────────────────────────────────────────────────────
+function rMonthly(rows){
+  const el=G("t-monthly");if(G("n-monthly"))G("n-monthly").textContent=`${rows.length} products`;
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
+  const mn=getMN();
+  const findMCols=type=>mn.map(m=>Object.keys(rows[0]).find(k=>k.toLowerCase().includes(m.toLowerCase().slice(0,3))&&k.toLowerCase().includes(type))||null);
+  const salesCols=findMCols("net_sales").map((c,i)=>c||mn[i]+" net_sales");
+  const unitsCols=findMCols("units").map((c,i)=>c||mn[i]+" units");
+  const marginCols=findMCols("margin");
+  const mColors=["var(--green3)","var(--gold2)","#6CA0DC"];
+  el.innerHTML=`<table>
+    <thead><tr>
+      <th>#</th><th>Product</th><th>SKU</th><th>Vendor</th>
+      ${mn.map((m,i)=>`<th class="r" style="color:${mColors[i]}">${m.slice(0,3)} U</th><th class="r" style="color:${mColors[i]}">${m.slice(0,3)} Sales</th>${marginCols[i]?`<th class="r" style="color:${mColors[i]}">${m.slice(0,3)} Margin</th>`:""}`).join("")}
+      <th class="r">Q Units</th><th class="r">Q Sales</th><th class="r gp">Avg Margin</th>
+    </tr></thead>
+    <tbody>
+    ${rows.map((r,i)=>{
+      const avgM=parseFloat(r["Q avg margin"]||r["avg_margin"]||0);
+      return`<tr>
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td>
+        <td class="nm">${r.product_title||"—"}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td>
+        <td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td>
+        ${mn.map((_,mi)=>{const u=r[unitsCols[mi]]||0,s=r[salesCols[mi]]||0,mg=marginCols[mi]?r[marginCols[mi]]||0:null;return`<td class="r" style="color:${mColors[mi]}">${fN(u)}</td><td class="r" style="color:${mColors[mi]}">${f$(s)}</td>${mg!==null?`<td class="r" style="color:var(--tx3)">${fM(mg)}</td>`:""}`}).join("")}
+        <td class="r">${fN(r["Q total units"]||r.units||0)}</td>
+        <td class="r">${f$(r["Q total sales"]||r.gross_sales||0)}</td>
+        <td class="r gps" style="color:${gC(avgM)}">${fM(avgM)}</td>
+      </tr>`;
+    }).join("")}
+    </tbody></table>`;
+}
+
+// ── VENDORS ──────────────────────────────────────────────────────
+function rVendors(rows){
+  const el=G("t-vendors");if(G("n-vendors"))G("n-vendors").textContent=`${rows.length} vendors`;
+  if(!rows.length){el.innerHTML=`<div class="empty">No data</div>`;return;}
+  el.innerHTML=`<table>
+    <thead><tr>
+      <th>#</th><th>Vendor</th><th class="r">SKUs</th><th class="r">Units</th>
+      <th class="r gp">Gross Profit</th><th class="r gp">GP%</th>
+      <th class="r">Net Sales</th><th class="r">Gross Sales</th>
+      <th class="r dc">Discounts</th><th class="r">COGS</th>
+      <th class="r">% Sales</th><th class="r">Cumulative</th>
+    </tr></thead>
+    <tbody>
+    ${rows.map((r,i)=>{const gm=parseFloat(r.gross_margin||0),cum=parseFloat(r.cumulative_pct||0)*100;const cumClr=cum<=80?"var(--green3)":cum<=95?"var(--gold2)":"#F87171";
+      return`<tr>
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td>
+        <td class="nm" style="font-weight:600">${r.vendor||"—"}</td>
+        <td class="r">${fN(r.skus)}</td><td class="r">${fN(r.units)}</td>
+        <td class="r gps" style="color:${gC(gm)};font-weight:600">${f$(r.gross_profit)}</td>
+        <td class="r" style="color:${gC(gm)};font-family:'DM Mono',monospace">${fM(gm)}</td>
+        <td class="r">${f$(r.net_sales)}</td>
+        <td class="r" style="color:var(--tx3)">${f$(r.gross_sales)}</td>
+        <td class="r dcs" style="color:#F87171">${f$(r.discounts)}</td>
+        <td class="r" style="color:var(--tx3)">${f$(r.cogs)}</td>
+        <td class="r">${((parseFloat(r.pct_of_sales||0))*100).toFixed(1)}%</td>
+        <td class="r"><div class="bm"><div class="bb"><div class="bf" style="width:${Math.min(cum,100)}%;background:${cumClr}"></div></div><span style="font-family:'DM Mono',monospace;font-size:10px;color:${cumClr}">${cum.toFixed(1)}%</span></div></td>
+      </tr>`;
+    }).join("")}
+    </tbody></table>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// COST ZERO — uses q_cost_zero_detail as order source
+// ════════════════════════════════════════════════════════════════
+
+function rCostZero(czRows, detailRows){
+  const rawCzRows = czRows || [];
+  // q_cost_zero_detail must contain ONLY real Shopify order lines where unit_cost/COGS = 0.
+  // This extra filter protects the dashboard from stale sheets or products that already have COGS loaded.
+  const rawProductTitles = new Set(rawCzRows.map(r=>(r.product_title||"").toLowerCase().trim()));
+  const zeroDetailRows = (detailRows || []).filter(r=>{
+    const t = (r.product_title||"").toLowerCase().trim();
+    const cogs = nval(r,"cogs");
+    const unitCost = nval(r,"unit_cost");
+    return rawProductTitles.has(t) && cogs <= 0.01 && unitCost <= 0.01;
+  });
+  const titlesWithZeroLines = new Set(zeroDetailRows.map(r=>(r.product_title||"").toLowerCase().trim()));
+  _czRows = zeroDetailRows.length ? rawCzRows.filter(r=>titlesWithZeroLines.has((r.product_title||"").toLowerCase().trim())) : rawCzRows;
+  _czDetailRows = zeroDetailRows;
+
+  _czActiveProd = "";
+
+  if(!_czRows.length){
+    G("cz-prod-list").innerHTML=`<div class="empty">All products have COGS loaded ✓</div>`;
+    G("t-costzero-detail").innerHTML=`<div class="empty" style="color:var(--tx3)">Nothing to show — no cost-zero products</div>`;
+    return;
+  }
+
+  // KPIs from q_cost_zero sheet
+  const totU  = _czRows.reduce((a,r)=>a+(parseInt(r.units)||0),0);
+  const totGS  = _czRows.reduce((a,r)=>a+(parseFloat(r.gross_sales)||0),0);
+  const totGP  = _czRows.reduce((a,r)=>a+(parseFloat(r.gross_profit)||0),0);
+  const totO   = _czDetailRows.length
+    ? new Set(_czDetailRows.map(r=>r.order_name).filter(Boolean)).size
+    : _czRows.reduce((a,r)=>a+(parseInt(r.orders)||0),0);
+  const totDisc= _czRows.reduce((a,r)=>a+nval(r,"discounts","discount"),0);
+
+  G("cz-tot-prods").textContent  = _czRows.length;
+  G("cz-tot-gs").textContent     = f$(totGS);
+  G("cz-tot-disc").textContent   = totDisc>0 ? f$(Math.abs(totDisc)) : "—";
+  G("cz-tot-gp").textContent     = f$(totGP);
+  G("cz-tot-units").textContent  = fN(totU);
+  G("cz-tot-ords").textContent   = fN(totO);
+
+  // Build sidebar product cards
+  const list = G("cz-prod-list");
+  list.innerHTML = "";
+
+  _czRows.forEach(r=>{
+    const gs   = parseFloat(r.gross_sales)||0;
+    const disc = nval(r,"discounts","discount");
+    const matchingRows = _czDetailRows.filter(d=>(d.product_title||"").toLowerCase().trim()===(r.product_title||"").toLowerCase().trim());
+    const orderCount = new Set(matchingRows.map(d=>d.order_name).filter(Boolean)).size;
+    const lineCount = matchingRows.length;
+    const card = document.createElement("div");
+    card.className = "zc";
+    card.dataset.prod = r.product_title||"";
+    card.style.setProperty("--zclr","#F87171");
+    card.innerHTML=`
+      <div style="font-size:10px;font-weight:700;color:var(--tx);margin-bottom:3px;white-space:normal;line-height:1.3">${r.product_title||"—"}</div>
+      <div style="font-size:10px;color:var(--tx3);margin-bottom:7px">${r.vendor||"No vendor"} · ${r.product_type||"Uncategorized"}</div>
+      <div class="zc-units">${fN(r.units)} <span style="font-size:10px;color:var(--tx3);font-family:'DM Sans',sans-serif;font-weight:400">units</span></div>
+      <div class="zc-row"><span>Gross Sales</span><span style="color:var(--green3)">${f$(gs)}</span></div>
+      <div class="zc-row"><span>Discounts</span><span style="color:${disc>0?"#F87171":"var(--tx3)"}">${disc>0?f$(Math.abs(disc)):"—"}</span></div>
+      <div class="zc-row"><span>COGS</span><span style="color:#F87171">$0 ⚠</span></div>
+      <div class="zc-row"><span>Detail orders</span><span style="color:var(--gold2)">${orderCount} orders · ${lineCount} lines</span></div>`;
+    card.addEventListener("click",()=>{
+      _czActiveProd = (_czActiveProd===r.product_title) ? "" : r.product_title;
+      document.querySelectorAll("#cz-prod-list .zc").forEach(c=>c.classList.toggle("active",!!_czActiveProd&&c.dataset.prod===_czActiveProd));
+      const badge   = G("cz-active-badge");
+      const clearBtn= G("cz-clear-btn");
+      const searchRow= G("cz-search-row");
+      if(_czActiveProd){
+        badge.style.display="inline-flex";
+        badge.textContent=_czActiveProd.slice(0,32)+(_czActiveProd.length>32?"…":"");
+        badge.style.background="rgba(248,113,113,.15)";badge.style.color="#F87171";
+        clearBtn.style.display="flex";
+        searchRow.style.display="flex";
+        if(G("cz-search")) G("cz-search").value="";
+      } else {
+        badge.style.display="none";clearBtn.style.display="none";searchRow.style.display="none";
+      }
+      renderCzDetail();
+    });
+    list.appendChild(card);
+  });
+
+  renderCzDetail();
+}
+
+function filterCzDetail(){
+  renderCzDetail();
+}
+
+function clearCzFilter(){
+  _czActiveProd="";
+  G("cz-active-badge").style.display="none";
+  G("cz-clear-btn").style.display="none";
+  G("cz-search-row").style.display="none";
+  if(G("cz-search")) G("cz-search").value="";
+  document.querySelectorAll("#cz-prod-list .zc").forEach(c=>c.classList.remove("active"));
+  renderCzDetail();
+}
+
+function renderCzDetail(){
+  const el    = G("t-costzero-detail");
+  const cnt   = G("cz-ord-count");
+  const search= (G("cz-search")?.value||"").toLowerCase();
+
+  if(!_czActiveProd){
+    el.innerHTML=`<div class="empty" style="color:var(--tx3)">← Select a product from the list to see real order data</div>`;
+    cnt.textContent="Select a product";
+    return;
+  }
+
+  // Filter detail rows for this product + optional search
+  const prodRows = _czDetailRows.filter(r=>{
+    const titleMatch = (r.product_title||"").toLowerCase().trim() === _czActiveProd.toLowerCase().trim();
+    if(!titleMatch) return false;
+    if(!search) return true;
+    return ((r.order_name||"")+(r.customer_name||"")+(r.customer_email||"")+(r.sku||"")+(r.vendor||"")+(r.tags||"")).toLowerCase().includes(search);
+  });
+
+  cnt.textContent = `${prodRows.length} order line${prodRows.length!==1?"s":""}`;
+
+  if(!prodRows.length){
+    el.innerHTML=`<div class="empty">No order detail found for this product in q_cost_zero_detail.<br><small style="color:var(--tx3)">Run the updated Python script first so the new detail sheet is generated.</small></div>`;
+    return;
+  }
+
+  // Aggregate quick KPIs for this product from detail rows
+  const totalGS  = prodRows.reduce((a,r)=>a+nval(r,"gross_sales","original_price"),0);
+  const totalDisc= prodRows.reduce((a,r)=>a+nval(r,"discount","discounts"),0);
+  const totalNet = prodRows.reduce((a,r)=>a+nval(r,"net_paid","net_sales"),0);
+  const totalUnits= prodRows.reduce((a,r)=>a+(parseInt(r.units)||0),0);
+  const uniqueOrders = new Set(prodRows.map(r=>r.order_name)).size;
+  const uniqueCustomers = new Set(prodRows.map(r=>r.customer_email||r.customer_name).filter(Boolean)).size;
+
+  el.innerHTML=`
+    <!-- Summary strip -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding:12px 14px;border-bottom:1px solid var(--bd);background:var(--sf3)">
+      <div class="od-kpi"><div class="od-kpi-lbl">Orders</div><div class="od-kpi-val">${uniqueOrders}</div></div>
+      <div class="od-kpi"><div class="od-kpi-lbl">Unique customers</div><div class="od-kpi-val">${uniqueCustomers}</div></div>
+      <div class="od-kpi"><div class="od-kpi-lbl">Units</div><div class="od-kpi-val">${fN(totalUnits)}</div></div>
+      <div class="od-kpi"><div class="od-kpi-lbl">Gross Sales</div><div class="od-kpi-val" style="color:var(--green3)">${f$(totalGS)}</div></div>
+      <div class="od-kpi"><div class="od-kpi-lbl">Total Discount</div><div class="od-kpi-val" style="color:#F87171">${f$(totalDisc)}</div></div>
+      <div class="od-kpi"><div class="od-kpi-lbl">Net Paid</div><div class="od-kpi-val" style="color:var(--green3)">${f$(totalNet)}</div></div>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Order #</th>
+        <th>Date</th>
+        <th>Month</th>
+        <th>Customer</th>
+        <th>Email</th>
+        <th>Created By</th>
+        <th>SKU</th>
+        <th>Vendor</th>
+        <th class="r">Units</th>
+        <th class="r dc">Gross Sale</th>
+        <th class="r dc">Discount</th>
+        <th class="r dc">Disc %</th>
+        <th class="r">Net Paid</th>
+        <th class="r" style="color:#F87171">COGS</th>
+        <th class="r" style="color:var(--gold2)">Shipping</th>
+        <th>Category</th>
+        <th>Tags</th>
+      </tr></thead>
+      <tbody>
+      ${prodRows.map(r=>{
+        const gross = nval(r,"gross_sales","original_price");
+        const disc  = nval(r,"discount","discounts");
+        const net   = nval(r,"net_paid","net_sales");
+        const cogs  = nval(r,"cogs");
+        const discPct = r.discount_pct!==undefined&&r.discount_pct!==""
+          ? fM(r.discount_pct)
+          : (gross>0 ? fM(disc/gross) : "—");
+        const isFullDisc = net <= 0.01 && gross > 0.01;
+        return`<tr>
+          <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--green3);font-weight:600">${r.order_name||"—"}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.created_at||"—"}</td>
+          <td style="font-size:10px;color:var(--tx3)">${r.month||"—"}</td>
+          <td class="nm" style="max-width:130px">${r.customer_name||"—"}</td>
+          <td style="font-size:10px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis">${r.customer_email||"—"}</td>
+          <td style="font-size:10px;color:var(--tx3);max-width:130px;overflow:hidden;text-overflow:ellipsis">${r.order_staff_name||"—"}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td>
+          <td style="font-size:10px;color:var(--tx3)">${r.vendor||"—"}</td>
+          <td class="r">${fN(r.units)}</td>
+          <td class="r dcs" style="color:#F87171">${f$(gross)}</td>
+          <td class="r" style="color:#F87171">${f$(disc)}</td>
+          <td class="r" style="color:${isFullDisc?"#F87171":"var(--tx3)"}">${discPct}</td>
+          <td class="r" style="color:${net<=0.01?"var(--tx3)":"var(--green3)"}">${f$(net)}</td>
+          <td class="r" style="color:${cogs<=0.01?"#F87171":"var(--gold2)"}">${cogs<=0.01?"$0 ⚠":f$(cogs)}</td>
+          <td class="r" style="color:var(--gold2)">${f$(r.shipping_paid)}</td>
+          <td style="font-size:10px"><span style="color:${r.category&&r.category!=="Other"?"var(--green3)":"var(--tx3)"}">${r.category||"—"}</span></td>
+          <td style="font-size:9px;color:var(--tx3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.tags||""}">${(r.tags||"—").slice(0,40)}</td>
+        </tr>`;
+      }).join("")}
+      </tbody>
+    </table>
+    </div>
+    <div style="padding:10px 14px;font-size:10px;color:var(--tx3);border-top:1px solid var(--bd)">
+      ⚠ COGS = $0 — profit figures are inflated. Fix in Shopify Admin → Products → Cost per item.
+      ${_czDetailRows.filter(r=>(r.product_title||"").toLowerCase().trim()===_czActiveProd.toLowerCase().trim()).length !== prodRows.length
+        ? `<span style="color:var(--gold2)"> · ${_czDetailRows.filter(r=>(r.product_title||"").toLowerCase().trim()===_czActiveProd.toLowerCase().trim()).length - prodRows.length} rows hidden by search filter.</span>`
+        : ""}
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// DISCOUNT ZERO
+// ════════════════════════════════════════════════════════════════
+const DZC={
+  "Advent Calendar":"#F87171","Team Rider":"#818CF8",
+  "Influencer":"#F472B6","Marketing":"#FBBF24",
+  "Sponsorship":"#34D399","Internal / Staff":"#60A5FA",
+  "Elite Cart Gift":"#FB923C","Other":"#9CA3AF"
+};
+
+function filterDiscZero(){
+  const search=G("dz-search").value.toLowerCase();
+  const cat=_dzActiveCat;
+  const filtered=_dzAllRows.filter(r=>{
+    const matchCat=!cat||(r.category||"")=== cat;
+    const matchSearch=!search||(r.product_title+r.order_name+(r.customer_name||"")+(r.customer_email||"")+r.vendor+(r.tags||"")).toLowerCase().includes(search);
+    return matchCat&&matchSearch;
+  });
+  const cnt=G("dz-count");
+  cnt.textContent=`${filtered.length}${_dzAllRows.length!==filtered.length?" of "+_dzAllRows.length:""} lines`;
+  renderDzTable(filtered);
+}
+
+function setDzCat(cat){
+  _dzActiveCat=cat;
+  document.querySelectorAll(".zc").forEach(c=>c.classList.toggle("active",!!cat&&c.dataset.cat===cat));
+  const badge=G("dz-active-badge");
+  const clearBtn=G("dz-clear-btn");
+  if(cat){
+    badge.style.display="inline-flex";badge.textContent=cat;
+    badge.style.background=(DZC[cat]||"#888")+"22";badge.style.color=DZC[cat]||"#888";
+    clearBtn.style.display="flex";
+  } else {
+    badge.style.display="none";clearBtn.style.display="none";
+  }
+  filterDiscZero();
+}
+
+function clearDzFilter(){
+  G("dz-search").value="";
+  setDzCat("");
+}
+
+function renderDzTable(rows){
+  const el=G("t-disczero");
+  if(!rows.length){el.innerHTML=`<div class="empty">No results for this filter</div>`;return;}
+  el.innerHTML=`<table>
+    <thead><tr>
+      <th>Order #</th><th>Date</th><th>Month</th><th>Category</th>
+      <th>Customer</th><th>Email</th>
+      <th>Product</th><th>Vendor</th>
+      <th class="r">Units</th><th class="r dc">Gross Sale</th>
+      <th class="r dc">Discount</th><th class="r dc">Disc %</th><th class="r">Net Paid</th>
+      <th class="r">Unit Cost</th><th class="r" style="color:var(--gold2)">COGS</th>
+      <th class="r" style="color:var(--gold2)">Shipping</th>
+      <th>Tags</th>
+    </tr></thead>
+    <tbody>
+    ${rows.slice(0,800).map(r=>{
+      const clr=DZC[r.category]||"#888";
+      const gross=parseFloat(r.gross_sales||r.original_price||0)||0;
+      const disc=parseFloat(r.discount||0)||0;
+      const net=parseFloat(r.net_paid||0)||0;
+      const dp=r.discount_pct!==undefined&&r.discount_pct!==""?fM(r.discount_pct):(gross>0?fM(disc/gross):"—");
+      return`<tr>
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--green3);font-weight:600">${r.order_name||"—"}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.created_at||"—"}</td>
+        <td style="font-size:10px;color:var(--tx3)">${r.month||"—"}</td>
+        <td><span style="font-size:10px;font-weight:700;color:${clr}">${r.category||"—"}</span></td>
+        <td class="nm" style="max-width:130px">${r.customer_name||"—"}</td>
+        <td style="font-size:10px;color:var(--tx3);max-width:150px;overflow:hidden;text-overflow:ellipsis">${r.customer_email||"—"}</td>
+        <td class="nm" style="max-width:160px">${r.product_title||"—"}<small>${r.product_type||""}</small></td>
+        <td style="font-size:10px;color:var(--tx3)">${r.vendor||"—"}</td>
+        <td class="r">${fN(r.units)}</td>
+        <td class="r dcs" style="color:#F87171">${f$(gross)}</td>
+        <td class="r" style="color:#F87171">${f$(disc)}</td>
+        <td class="r" style="color:#F87171">${dp}</td>
+        <td class="r">${f$(net)}</td>
+        <td class="r" style="color:var(--tx3)">${f$(r.unit_cost)}</td>
+        <td class="r" style="color:var(--gold2)">${f$(r.cogs)}</td>
+        <td class="r" style="color:var(--gold2)">${f$(r.shipping_paid)}</td>
+        <td style="font-size:9px;color:var(--tx3);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.tags||""}">${(r.tags||"—").slice(0,35)}</td>
+      </tr>`;
+    }).join("")}
+    </tbody></table>
+    ${rows.length>800?`<div style="padding:8px 14px;font-size:10px;color:var(--tx3)">Showing 800 of ${rows.length}. Full list in Google Sheets.</div>`:""}`;
+}
+
+function rDiscZero(summary,detail){
+  _dzAllRows=detail||[];
+  _dzActiveCat="";
+
+  const totU=_dzAllRows.reduce((a,r)=>a+(parseInt(r.units)||0),0);
+  const totC=_dzAllRows.reduce((a,r)=>a+(parseFloat(r.cogs)||0),0);
+  const totD=_dzAllRows.reduce((a,r)=>a+(parseFloat(r.discount||r.original_price)||0),0);
+  G("dz-tot-units").textContent=fN(totU);
+  G("dz-tot-cogs").textContent=f$(totC);
+  G("dz-tot-disc").textContent=f$(totD);
+
+  if(G("n-disczero"))G("n-disczero").textContent=`${_dzAllRows.length} lines`;
+
+  const catMap={};
+  _dzAllRows.forEach(r=>{
+    const cat=r.category||"Other";
+    if(!catMap[cat])catMap[cat]={units:0,cogs:0,disc:0,count:0};
+    catMap[cat].units+=parseInt(r.units)||0;
+    catMap[cat].cogs+=parseFloat(r.cogs)||0;
+    catMap[cat].disc+=parseFloat(r.discount||r.original_price)||0;
+    catMap[cat].count++;
+  });
+
+  const cards=G("dz-cards");cards.innerHTML="";
+
+  if(!Object.keys(catMap).length){
+    cards.innerHTML=`<div class="empty">No Discount Zero data this quarter</div>`;
+    G("t-disczero").innerHTML=`<div class="empty">No data</div>`;return;
+  }
+
+  const sortedCats=Object.entries(catMap).sort((a,b)=>b[1].disc-a[1].disc);
+
+  sortedCats.forEach(([cat,data])=>{
+    const clr=DZC[cat]||"#888";
+    const card=document.createElement("div");
+    card.className="zc";card.dataset.cat=cat;
+    card.style.setProperty("--zclr",clr);
+    card.innerHTML=`
+      <div class="zcat" style="color:${clr}">${cat}</div>
+      <div class="zc-units">${fN(data.units)} <span style="font-size:11px;color:var(--tx3);font-family:'DM Sans',sans-serif;font-weight:400">units</span></div>
+      <div class="zc-row"><span>Discounts</span><span style="color:#F87171">${f$(data.disc)}</span></div>
+      <div class="zc-row"><span>COGS</span><span style="color:var(--gold2)">${f$(data.cogs)}</span></div>
+      <div class="zc-row"><span>Lines</span><span>${data.count}</span></div>`;
+    card.addEventListener("click",()=>{setDzCat(_dzActiveCat===cat?"":cat);});
+    cards.appendChild(card);
+  });
+
+  const totEl=G("dz-sidebar-total");
+  const totRows=G("dz-sidebar-total-rows");
+  totEl.style.display="block";
+  totRows.innerHTML=`
+    <div class="zc-total-row"><span>Total units</span><span>${fN(totU)}</span></div>
+    <div class="zc-total-row"><span>Total discounts</span><span style="color:#F87171">${f$(totD)}</span></div>
+    <div class="zc-total-row"><span>Total COGS</span><span style="color:var(--gold2)">${f$(totC)}</span></div>
+    <div class="zc-total-row"><span>${_dzAllRows.length} lines</span><span>${sortedCats.length} cats</span></div>`;
+
+  G("dz-active-badge").style.display="none";
+  G("dz-clear-btn").style.display="none";
+  G("dz-count").textContent=`${_dzAllRows.length} lines`;
+
+  renderDzTable(_dzAllRows);
+}
+
+// ════════════════════════════════════════════════════════════════
+// STAFF — sidebar by person + detail table
+// ════════════════════════════════════════════════════════════════
+
+function filterStaff(){
+  renderStaffTable();
+}
+
+function setStPerson(person){
+  _stActivePerson = person;
+  document.querySelectorAll("#st-people-list .zc").forEach(c=>c.classList.toggle("active",!!person&&c.dataset.person===person));
+  const badge=G("st-active-badge"),btn=G("st-clear-btn");
+  if(person){
+    badge.style.display="inline-flex";badge.textContent=person.slice(0,30);
+    badge.style.background="rgba(96,165,250,.15)";badge.style.color="#60A5FA";
+    btn.style.display="flex";
+  } else {badge.style.display="none";btn.style.display="none";}
+  renderStaffTable();
+}
+
+function clearStFilter(){
+  _stActivePerson="";
+  if(G("st-search")) G("st-search").value="";
+  G("st-active-badge").style.display="none";G("st-clear-btn").style.display="none";
+  document.querySelectorAll("#st-people-list .zc").forEach(c=>c.classList.remove("active"));
+  renderStaffTable();
+}
+
+function rStaff(rows){
+  _stAllRows = rows||[];
+  _stActivePerson="";
+
+  const expected= _stAllRows.reduce((a,r)=>a+(parseFloat(r.expected_item_payment)||0),0);
+  const paid    = _stAllRows.reduce((a,r)=>a+(parseFloat(r.net_paid)||0),0);
+  const gap     = paid - expected;
+  // Staff tab must group by GraphQL createdBy, NOT customer.
+  const personKeyOf = r => r.staff_member || r.staff_person_name || r.order_staff_name || "Unknown";
+  const personNameOf = r => r.staff_member || r.staff_person_name || r.order_staff_name || "Unknown";
+  const personEmailOf = r => r.staff_person_email || r.created_by_email || r.order_staff_email || "";
+
+  const uniquePeople = new Set(_stAllRows.map(personKeyOf).filter(Boolean));
+  const uniqueOrders = new Set(_stAllRows.map(r=>r.order_name).filter(Boolean));
+
+  G("st-tot-people").textContent = uniquePeople.size;
+  G("st-tot-orders").textContent = uniqueOrders.size;
+  G("st-tot-lines").textContent  = fN(_stAllRows.length);
+  G("st-tot-expected").textContent=f$(expected);
+  G("st-tot-paid").textContent   = f$(paid);
+  G("st-tot-gap").textContent    = f$(gap);
+  if(G("st-tot-gap")) G("st-tot-gap").style.color = gap < 0 ? "#F87171" : "var(--green3)";
+
+  // Build sidebar: one card per staff member from GraphQL Order.createdBy.
+  const personMap = {};
+  _stAllRows.forEach(r=>{
+    const key = personKeyOf(r);
+    if(!personMap[key]) personMap[key]={name:personNameOf(r),email:personEmailOf(r),lines:0,orders:new Set(),expected:0,paid:0,gap:0};
+    personMap[key].lines++;
+    personMap[key].orders.add(r.order_name||"");
+    personMap[key].expected += parseFloat(r.expected_item_payment)||0;
+    personMap[key].paid     += parseFloat(r.net_paid)||0;
+  });
+  Object.values(personMap).forEach(p=>{ p.gap=p.paid-p.expected; });
+
+  const sortedPeople = Object.entries(personMap).sort((a,b)=>b[1].lines-a[1].lines);
+  const list = G("st-people-list");
+  list.innerHTML="";
+
+  if(!sortedPeople.length){
+    list.innerHTML=`<div class="empty">No staff/internal orders</div>`;
+    G("t-staff").innerHTML=`<div class="empty">No staff/internal tagged rows this quarter</div>`;
+    G("st-line-count").textContent="0 lines";
+    return;
+  }
+
+  sortedPeople.forEach(([key,p])=>{
+    const card=document.createElement("div");
+    card.className="zc";
+    card.dataset.person=key;
+    card.style.setProperty("--zclr","#60A5FA");
+    const gapClr = p.gap<0?"#F87171":"var(--green3)";
+    card.innerHTML=`
+      <div style="font-size:10px;font-weight:700;color:var(--tx);margin-bottom:2px">${p.name}</div>
+      <div style="font-size:9px;color:var(--tx3);margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||"GraphQL createdBy"}</div>
+      <div class="zc-units">${p.lines} <span style="font-size:10px;color:var(--tx3);font-family:'DM Sans',sans-serif;font-weight:400">lines</span></div>
+      <div class="zc-row"><span>Orders</span><span>${p.orders.size}</span></div>
+      <div class="zc-row"><span>Net paid</span><span style="color:var(--green3)">${f$(p.paid)}</span></div>
+      <div class="zc-row"><span>Expected</span><span style="color:var(--gold2)">${f$(p.expected)}</span></div>
+      <div class="zc-row"><span>Gap</span><span style="color:${gapClr}">${f$(p.gap)}</span></div>`;
+    card.addEventListener("click",()=>setStPerson(_stActivePerson===key?"":key));
+    list.appendChild(card);
+  });
+
+  G("st-line-count").textContent=`${_stAllRows.length} lines`;
+  renderStaffTable();
+}
+
+function renderStaffTable(){
+  const el   = G("t-staff");
+  const search=(G("st-search")?.value||"").toLowerCase();
+  const cnt  = G("st-line-count");
+  const personKeyOf = r => r.staff_member || r.staff_person_name || r.order_staff_name || "Unknown";
+
+  const filtered = _stAllRows.filter(r=>{
+    const key = personKeyOf(r);
+    const matchPerson = !_stActivePerson || key===_stActivePerson;
+    const matchSearch = !search || ((r.order_name||"")+(r.staff_member||"")+(r.staff_person_name||"")+(r.staff_person_email||"")+(r.created_by_name||"")+(r.created_by_email||"")+(r.customer_name||"")+(r.customer_email||"")+(r.order_staff_name||"")+(r.order_staff_email||"")+(r.product_title||"")+(r.sku||"")+(r.tags||"")).toLowerCase().includes(search);
+    return matchPerson && matchSearch;
+  });
+
+  cnt.textContent=`${filtered.length}${_stAllRows.length!==filtered.length?" of "+_stAllRows.length:""} lines`;
+
+  if(!filtered.length){
+    el.innerHTML=`<div class="empty">No results</div>`;
+    return;
+  }
+
+  el.innerHTML=`<table>
+    <thead><tr>
+      <th>Order #</th><th>Date</th><th>Month</th><th>Staff Member</th><th>Staff Email</th><th>Customer</th>
+      <th>Category</th><th>Product</th><th>SKU</th><th>Vendor</th><th>Drop</th>
+      <th class="r">Units</th>
+      <th class="r dc">Gross Sale</th><th class="r dc">Discount</th><th class="r dc">Disc %</th>
+      <th class="r">Net Paid</th>
+      <th class="r">COGS</th><th class="r" style="color:var(--gold2)">Expected</th>
+      <th class="r">Gap</th>
+      <th class="r" style="color:var(--gold2)">Shipping</th>
+      <th>Tags</th>
+    </tr></thead>
+    <tbody>
+    ${filtered.map(r=>{
+      const gap=parseFloat(r.payment_gap)||0;
+      const gross=parseFloat(r.gross_sales)||0;
+      const disc=parseFloat(r.discount)||0;
+      const discPct=r.discount_pct!==undefined&&r.discount_pct!==""?fM(r.discount_pct):(gross>0?fM(disc/gross):"—");
+      const staffName = r.staff_member || r.staff_person_name || r.order_staff_name || "—";
+      const staffEmail = r.staff_person_email || r.created_by_email || r.order_staff_email || "—";
+      const customerTxt = r.customer_name || r.customer_email || "—";
+      return`<tr>
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--green3);font-weight:600">${r.order_name||"—"}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.created_at||"—"}</td>
+        <td style="font-size:10px;color:var(--tx3)">${r.month||"—"}</td>
+        <td class="nm" style="max-width:130px">${staffName}</td>
+        <td style="font-size:10px;color:var(--tx3);max-width:150px;overflow:hidden;text-overflow:ellipsis">${staffEmail}</td>
+        <td style="font-size:10px;color:#60A5FA;max-width:130px;overflow:hidden;text-overflow:ellipsis">${customerTxt}</td>
+        <td style="font-size:10px;color:#60A5FA;font-weight:600">${r.category||"—"}</td>
+        <td class="nm" style="max-width:170px">${r.product_title||"—"}<small>${r.sku||""}</small></td>
+        <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td>
+        <td style="font-size:10px;color:var(--tx3)">${r.vendor||"—"}</td>
+        <td><span class="bdg ${(r.is_dropship||"").toUpperCase()==="YES"?"dy":"dn"}">${r.is_dropship||"NO"}</span></td>
+        <td class="r">${fN(r.units)}</td>
+        <td class="r dcs" style="color:#F87171">${f$(gross)}</td>
+        <td class="r" style="color:#F87171">${f$(disc)}</td>
+        <td class="r" style="color:var(--tx3)">${discPct}</td>
+        <td class="r">${f$(r.net_paid)}</td>
+        <td class="r" style="color:var(--gold2)">${f$(r.cogs)}</td>
+        <td class="r" style="color:var(--gold2)">${f$(r.expected_item_payment)}</td>
+        <td class="r" style="color:${gap<0?"#F87171":"var(--green3)"};font-weight:${gap<0?700:400}">${f$(gap)}</td>
+        <td class="r" style="color:var(--gold2)">${f$(r.shipping_paid)}</td>
+        <td style="font-size:9px;color:var(--tx3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.tags||""}">${(r.tags||"—").slice(0,40)}</td>
+      </tr>`;
+    }).join("")}
+    </tbody></table>`;
+}
+
+// ── NO ACTIVITY ──────────────────────────────────────────────────
+function rNoSales(rows){
+  const el=G("t-nosales");if(G("n-nosales"))G("n-nosales").textContent=`${rows.length} products`;
+  if(!rows.length){el.innerHTML=`<div class="empty">All products had activity this quarter ✓</div>`;return;}
+  el.innerHTML=`<table>
+    <thead><tr><th>#</th><th>Product</th><th>SKU</th><th>Vendor</th><th>Type</th><th>Drop</th></tr></thead>
+    <tbody>
+    ${rows.map((r,i)=>`<tr>
+      <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.rank||i+1}</td>
+      <td class="nm">${r.product_title||"—"}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3)">${r.sku||"—"}</td>
+      <td style="font-size:11px;color:var(--tx3)">${r.vendor||"—"}</td>
+      <td style="font-size:10px;color:var(--tx3)">${r.product_type||"—"}</td>
+      <td><span class="bdg ${(r.is_dropship||"").toUpperCase()==="YES"?"dy":"dn"}">${r.is_dropship||"NO"}</span></td>
+    </tr>`).join("")}
+    </tbody></table>`;
+}
+
+// ── MAIN RENDER ──────────────────────────────────────────────────
+async function render(){
+  const sfx=getSfx(),label=getLbl();
+  G("ov").classList.add("show");G("ovt").textContent=`Loading ${label}…`;
+  G("pb").textContent=label;G("fl").textContent=label;G("pst").querySelector("span").textContent=periodStatus();
+  cache={};_dzAllRows=[];_dzActiveCat="";_stAllRows=[];_stActivePerson="";_czRows=[];_czDetailRows=[];_czActiveProd="";
+
+  const tabs=[
+    `q_summary_${sfx}`,`q_top_products_${sfx}`,`q_top_sku_${sfx}`,
+    `q_top_dropship_${sfx}`,`q_top_margin_${sfx}`,`q_top_gp_${sfx}`,
+    `q_monthly_breakdown_${sfx}`,`q_vendors_${sfx}`,
+    `q_cost_zero_${sfx}`,
+    `q_cost_zero_detail_${sfx}`,
+    `q_discount_zero_detail_${sfx}`,
+    `q_staff_orders_${sfx}`,
+    `q_zero_sales_${sfx}`,
+  ];
+  const [sum,prod,sku,drop,margin,gp,monthly,vend,cz,czd,dzd,staff,ns]=await Promise.all(tabs.map(ft));
+
+  rSummary(sum);
+  mkProdTable(prod,"t-products","n-products","fs-products","fi-products");
+  mkSkuTable(sku,"t-sku","n-sku");
+  mkProdTable(drop,"t-dropship","n-dropship",null,null);
+  mkProdTable(margin,"t-margin","n-margin",null,null);
+  mkProdTable(gp,"t-gp","n-gp",null,null);
+  rMonthly(monthly);
+  rVendors(vend);
+  // Cost Zero: pass q_cost_zero rows + q_cost_zero_detail for real order lookup
+  rCostZero(cz, czd);
+  // 100% Discount keeps using q_discount_zero_detail only
+  rDiscZero(null, dzd);
+  rStaff(staff);
+  rNoSales(ns);
+  const skuPill=G("pill-sku");if(skuPill)skuPill.textContent=sku?.length||"";
+  G("ov").classList.remove("show");
+}
+
+function forceRefresh(){cache={};render();}
+function toggleTheme(){
+  const h=document.documentElement;
+  const dk=h.getAttribute("data-theme")==="dark";
+  h.setAttribute("data-theme",dk?"light":"dark");
+  G("themeBtn").textContent=dk?"☀":"☾";
+}
+
+buildMonthOptions();buildWeekOptions();updatePeriodControls();render();
+</script>
+</body>
+</html>
