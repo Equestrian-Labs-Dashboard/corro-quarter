@@ -193,6 +193,61 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
 .cz-order-row{cursor:pointer}
 .cz-order-row:hover td{background:rgba(61,191,122,.05)!important}
 
+
+
+/* ── RESPONSIVE TABLE CARDS ───────────────────────────────────────
+   Desktop keeps the normal grid table. On tablet/phone every table row
+   becomes a readable card so information is not hidden behind horizontal
+   scroll. JS adds data-label attributes from the table headers. */
+@media(max-width:900px){
+  html,body{overflow-x:hidden;font-size:13px}
+  .topbar{padding:12px 14px;align-items:flex-start}
+  .brand{width:100%;min-width:0;flex-wrap:wrap}
+  .brand-sub{display:none}
+  .pb-badge{margin-left:0}
+  .top-controls{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .sg{min-width:0}.sg select.ps,.ps{width:100%;min-width:0}
+  .btn-top{justify-content:center}.tbtn-top{width:100%}
+  .content{padding:12px}
+  .tab-nav{position:sticky;top:0;z-index:50;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin;margin:-12px -12px 14px;padding:6px 12px;border-radius:0;border-left:0;border-right:0}
+  .tbn{flex:0 0 auto;padding:8px 12px}
+  .kg,.dz-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .kc,.dz-kpi{padding:12px}.kv,.dz-kpi-val{font-size:18px}
+  .mg{grid-template-columns:1fr}
+  .dz-layout{grid-template-columns:1fr;gap:10px}
+  .dz-sidebar{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .dz-sidebar>div:first-child{grid-column:1/-1}
+  .zc-total-all{grid-column:1/-1}
+  .dz-det-head,.th{align-items:flex-start}
+  .dz-search-row,.filter-bar{flex-direction:column;align-items:stretch}
+  .filter-inp,select.filter-sel,.dz-search-inp{width:100%!important}
+  .tw,.dz-detail{overflow:visible}
+  .ts,.dz-table-wrap{overflow:visible;max-height:none;min-height:0}
+  table.resp-card{display:block;width:100%;border-collapse:separate}
+  table.resp-card thead{display:none}
+  table.resp-card tbody{display:block;width:100%}
+  table.resp-card tbody tr{display:block;width:100%;margin:10px 0;background:var(--sf2);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.03)}
+  table.resp-card tbody tr:hover{background:var(--sf2)}
+  table.resp-card tbody tr.tot-row{border:2px solid var(--bd2)}
+  table.resp-card td{display:flex!important;align-items:flex-start;justify-content:space-between;gap:12px;width:100%;max-width:none!important;white-space:normal!important;text-align:right!important;border:0;border-bottom:1px solid var(--bd);padding:9px 11px;line-height:1.35;color:var(--tx)}
+  table.resp-card td:last-child{border-bottom:0}
+  table.resp-card td::before{content:attr(data-label);flex:0 0 42%;text-align:left;font-family:'DM Sans',sans-serif;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);line-height:1.35}
+  table.resp-card td.nm{display:block!important;text-align:left!important;font-weight:700}
+  table.resp-card td.nm::before{display:block;margin-bottom:5px;content:attr(data-label)}
+  table.resp-card td small{white-space:normal!important}
+  table.resp-card td[title]{overflow:visible!important;text-overflow:clip!important}
+  table.resp-card .bm{justify-content:flex-end}.bb{width:90px}
+}
+@media(max-width:560px){
+  .top-controls{grid-template-columns:1fr}
+  .kg,.dz-kpis,.dz-sidebar{grid-template-columns:1fr}
+  .brand-name{font-size:14px}.pb-badge{font-size:10px;padding:3px 9px}
+  .kc,.dz-kpi,.mc,.tw,.dz-detail{border-radius:9px}
+  table.resp-card td{flex-direction:column;text-align:left!important;gap:3px}
+  table.resp-card td::before{flex:none;width:100%}
+  table.resp-card .bm{justify-content:flex-start}
+}
+
 .foot{margin-top:24px;font-size:10px;color:var(--tx3);text-align:center;padding:0 28px}
 
 @media(max-width:900px){
@@ -1438,6 +1493,27 @@ function rNoSales(rows){
     </tbody></table>`;
 }
 
+
+// ── RESPONSIVE TABLE ENHANCER ────────────────────────────────────
+function enhanceResponsiveTables(root=document){
+  root.querySelectorAll("table").forEach(tbl=>{
+    tbl.classList.add("resp-card");
+    const labels=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().replace(/\s+/g," "));
+    tbl.querySelectorAll("tbody tr").forEach(tr=>{
+      [...tr.children].forEach((td,i)=>{
+        if(!td.getAttribute("data-label")) td.setAttribute("data-label", labels[i] || "");
+      });
+    });
+  });
+}
+let _rtScheduled=false;
+const _rtObserver=new MutationObserver(()=>{
+  if(_rtScheduled) return;
+  _rtScheduled=true;
+  requestAnimationFrame(()=>{_rtScheduled=false;enhanceResponsiveTables(document);});
+});
+_rtObserver.observe(document.body,{childList:true,subtree:true});
+
 // ── MAIN RENDER ──────────────────────────────────────────────────
 async function render(){
   const sfx=getSfx(),label=getLbl();
@@ -1472,6 +1548,7 @@ async function render(){
   rStaff(staff);
   rNoSales(ns);
   const skuPill=G("pill-sku");if(skuPill)skuPill.textContent=sku?.length||"";
+  enhanceResponsiveTables(document);
   G("ov").classList.remove("show");
 }
 
