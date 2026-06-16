@@ -238,6 +238,40 @@ select.filter-sel{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx
   table.resp-card td[title]{overflow:visible!important;text-overflow:clip!important}
   table.resp-card .bm{justify-content:flex-end}.bb{width:90px}
 }
+/* ── CONTAINER-BASED TABLE CARDS (fix for narrow dashboard panes) ──
+/* Applied by JS when a table is wider than its visible panel, even if the
+   browser viewport is technically desktop-sized. */
+table.force-card{display:block!important;width:100%!important;min-width:0!important;border-collapse:separate!important}
+table.force-card thead{display:none!important}
+table.force-card tbody{display:block!important;width:100%!important}
+table.force-card tbody tr{display:block!important;width:100%!important;margin:10px 0!important;background:var(--sf2)!important;border:1px solid var(--bd)!important;border-radius:12px!important;overflow:hidden!important;box-shadow:0 1px 0 rgba(255,255,255,.03)!important}
+table.force-card tbody tr:hover{background:var(--sf2)!important}
+table.force-card td{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:12px!important;width:100%!important;max-width:none!important;min-width:0!important;white-space:normal!important;text-align:right!important;border:0!important;border-bottom:1px solid var(--bd)!important;padding:9px 11px!important;line-height:1.35!important;color:var(--tx)!important;overflow:visible!important;text-overflow:clip!important}
+
+/* Full text columns: Discount Source should never be cut */
+td.full-text-cell,
+table.force-card td.full-text-cell,
+table.resp-card td.full-text-cell{
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  word-break:break-word!important;
+  overflow-wrap:anywhere!important;
+  line-height:1.35!important;
+  max-width:420px!important;
+}
+td.discount-source-cell{min-width:220px!important}
+table.force-card td.discount-source-cell,
+table.resp-card td.discount-source-cell{min-width:0!important;max-width:none!important;text-align:left!important}
+table.force-card td:last-child{border-bottom:0!important}
+table.force-card td::before{content:attr(data-label)!important;flex:0 0 42%!important;text-align:left!important;font-family:'DM Sans',sans-serif!important;font-size:9px!important;font-weight:800!important;letter-spacing:.08em!important;text-transform:uppercase!important;color:var(--tx3)!important;line-height:1.35!important}
+table.force-card td.nm{display:block!important;text-align:left!important;font-weight:700!important}
+table.force-card td.nm::before{display:block!important;margin-bottom:5px!important;content:attr(data-label)!important}
+table.force-card td small{white-space:normal!important}
+table.force-card .bm{justify-content:flex-end!important}
+.dz-table-wrap.card-mode,.ts.card-mode{overflow:visible!important;max-height:none!important;min-height:0!important}
+@media(max-width:560px){table.force-card td{flex-direction:column!important;text-align:left!important;gap:3px!important}table.force-card td::before{flex:none!important;width:100%!important}table.force-card .bm{justify-content:flex-start!important}}
+
 @media(max-width:560px){
   .top-controls{grid-template-columns:1fr}
   .kg,.dz-kpis,.dz-sidebar{grid-template-columns:1fr}
@@ -1138,7 +1172,7 @@ function renderCzDetail(){
           <td class="r dcs" style="color:#F87171">${f$(gross)}</td>
           <td class="r" style="color:#F87171">${f$(disc)}</td>
           <td class="r" style="color:${isFullDisc?"#F87171":"var(--tx3)"}">${discPct}</td>
-          <td style="font-size:10px;color:var(--gold2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.discount_code_source||r.order_discount_codes||''}">${(r.discount_code_source||r.order_discount_codes||"—").slice(0,55)}</td>
+          <td class="full-text-cell discount-source-cell" style="font-size:10px;color:var(--gold2);max-width:360px;overflow:visible;text-overflow:clip;white-space:normal;line-height:1.35;word-break:break-word" title="${r.discount_code_source||r.order_discount_codes||''}">${r.discount_code_source||r.order_discount_codes||"—"}</td>
           <td class="r" style="color:${net<=0.01?"var(--tx3)":"var(--green3)"}">${f$(net)}</td>
           <td class="r" style="color:${cogs<=0.01?"#F87171":"var(--gold2)"}">${cogs<=0.01?"$0 ⚠":f$(cogs)}</td>
           <td class="r" style="color:var(--gold2)">${f$(r.shipping_paid)}</td>
@@ -1234,7 +1268,7 @@ function renderDzTable(rows){
         <td class="r dcs" style="color:#F87171">${f$(gross)}</td>
         <td class="r" style="color:#F87171">${f$(disc)}</td>
         <td class="r" style="color:#F87171">${dp}</td>
-        <td style="font-size:10px;color:var(--gold2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.discount_code_source||r.order_discount_codes||''}">${(r.discount_code_source||r.order_discount_codes||"—").slice(0,55)}</td>
+        <td class="full-text-cell discount-source-cell" style="font-size:10px;color:var(--gold2);max-width:360px;overflow:visible;text-overflow:clip;white-space:normal;line-height:1.35;word-break:break-word" title="${r.discount_code_source||r.order_discount_codes||''}">${r.discount_code_source||r.order_discount_codes||"—"}</td>
         <td class="r">${f$(net)}</td>
         <td class="r" style="color:var(--tx3)">${f$(r.unit_cost)}</td>
         <td class="r" style="color:var(--gold2)">${f$(r.cogs)}</td>
@@ -1463,7 +1497,7 @@ function renderStaffTable(){
         <td class="r dcs" style="color:#F87171">${f$(gross)}</td>
         <td class="r" style="color:#F87171">${f$(disc)}</td>
         <td class="r" style="color:var(--tx3)">${discPct}</td>
-        <td style="font-size:10px;color:var(--gold2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.discount_code_source||r.order_discount_codes||''}">${(r.discount_code_source||r.order_discount_codes||"—").slice(0,55)}</td>
+        <td class="full-text-cell discount-source-cell" style="font-size:10px;color:var(--gold2);max-width:360px;overflow:visible;text-overflow:clip;white-space:normal;line-height:1.35;word-break:break-word" title="${r.discount_code_source||r.order_discount_codes||''}">${r.discount_code_source||r.order_discount_codes||"—"}</td>
         <td class="r">${f$(r.net_paid)}</td>
         <td class="r" style="color:var(--gold2)">${f$(r.cogs)}</td>
         <td class="r" style="color:var(--gold2)">${f$(r.expected_item_payment)}</td>
@@ -1504,6 +1538,16 @@ function enhanceResponsiveTables(root=document){
         if(!td.getAttribute("data-label")) td.setAttribute("data-label", labels[i] || "");
       });
     });
+
+    // Container-based fallback: the dashboard can be embedded or zoomed so the
+    // CSS viewport is still wide while the actual table pane is narrow. When
+    // the visible pane is too small, force cards instead of horizontal scroll.
+    const holder = tbl.closest(".dz-table-wrap,.ts") || tbl.parentElement;
+    const paneW = holder ? holder.getBoundingClientRect().width : window.innerWidth;
+    const isAuditDetail = !!tbl.closest("#t-disczero,#t-costzero-detail,#t-staff");
+    const shouldCard = paneW < 980 || window.innerWidth < 1200 || (isAuditDetail && paneW < 1250);
+    tbl.classList.toggle("force-card", shouldCard);
+    if(holder) holder.classList.toggle("card-mode", shouldCard);
   });
 }
 let _rtScheduled=false;
@@ -1513,6 +1557,7 @@ const _rtObserver=new MutationObserver(()=>{
   requestAnimationFrame(()=>{_rtScheduled=false;enhanceResponsiveTables(document);});
 });
 _rtObserver.observe(document.body,{childList:true,subtree:true});
+window.addEventListener("resize",()=>enhanceResponsiveTables(document));
 
 // ── MAIN RENDER ──────────────────────────────────────────────────
 async function render(){
