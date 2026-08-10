@@ -587,7 +587,7 @@ table.force-card .bm{justify-content:flex-end!important}
     <div class="dz-kpi">
       <div class="dz-kpi-lbl">Staff members</div>
       <div class="dz-kpi-val" id="st-tot-people" style="color:var(--green3)">—</div>
-      <div class="dz-kpi-sub">GraphQL createdBy identified</div>
+      <div class="dz-kpi-sub">Shopify staff attribution identified</div>
     </div>
     <div class="dz-kpi">
       <div class="dz-kpi-lbl">Staff orders</div>
@@ -600,19 +600,19 @@ table.force-card .bm{justify-content:flex-end!important}
       <div class="dz-kpi-sub">internal / employee tagged items</div>
     </div>
     <div class="dz-kpi">
-      <div class="dz-kpi-lbl">Expected payment</div>
+      <div class="dz-kpi-lbl">Required (COGS + 10%)</div>
       <div class="dz-kpi-val" id="st-tot-expected" style="color:var(--gold2)">—</div>
-      <div class="dz-kpi-sub">COGS + 10% per item</div>
+      <div class="dz-kpi-sub">minimum staff payment based on item COGS</div>
     </div>
     <div class="dz-kpi">
-      <div class="dz-kpi-lbl">Net paid</div>
+      <div class="dz-kpi-lbl">Actual net paid</div>
       <div class="dz-kpi-val" id="st-tot-paid" style="color:var(--green3)">—</div>
-      <div class="dz-kpi-sub">item amount after discounts</div>
+      <div class="dz-kpi-sub">actual amount paid after discounts</div>
     </div>
     <div class="dz-kpi">
       <div class="dz-kpi-lbl">Payment gap</div>
       <div class="dz-kpi-val" id="st-tot-gap" style="color:#F87171">—</div>
-      <div class="dz-kpi-sub">underpaid vs expected</div>
+      <div class="dz-kpi-sub">actual paid minus required COGS + 10%</div>
     </div>
   </div>
 
@@ -1196,17 +1196,25 @@ function renderCzDetail(){
 // ════════════════════════════════════════════════════════════════
 const DZC={
   "Advent Calendar":"#F87171","Team Rider":"#818CF8",
-  "Influencer":"#F472B6","Marketing":"#FBBF24",
+  "Influencer":"#F472B6","Influencer / Creator":"#F472B6","Marketing":"#FBBF24",
   "Sponsorship":"#34D399","Internal / Staff":"#60A5FA",
-  "Elite Cart Gift":"#FB923C","Other":"#9CA3AF"
+  "Elite Cart Gift":"#FB923C","Upsell / Post-purchase":"#22D3EE",
+  "Gift with Purchase":"#A78BFA","Giveaway / Contest":"#FB7185",
+  "Sample / Product Seeding":"#2DD4BF","Customer Service / Courtesy":"#F59E0B",
+  "Other — Unclassified":"#9CA3AF","Other":"#9CA3AF"
 };
+function dzColor(cat){
+  if(DZC[cat]) return DZC[cat];
+  if((cat||"").startsWith("Other —")) return "#9CA3AF";
+  return "#888";
+}
 
 function filterDiscZero(){
   const search=G("dz-search").value.toLowerCase();
   const cat=_dzActiveCat;
   const filtered=_dzAllRows.filter(r=>{
     const matchCat=!cat||(r.category||"")=== cat;
-    const matchSearch=!search||(r.product_title+r.order_name+(r.customer_name||"")+(r.customer_email||"")+r.vendor+(r.tags||"")+(r.discount_code_source||"")+(r.order_discount_codes||"")).toLowerCase().includes(search);
+    const matchSearch=!search||((r.product_title||"")+(r.order_name||"")+(r.customer_name||"")+(r.customer_email||"")+(r.vendor||"")+(r.tags||"")+(r.discount_code_source||"")+(r.order_discount_codes||"")+(r.classification_reason||"")+(r.classification_evidence||"")).toLowerCase().includes(search);
     return matchCat&&matchSearch;
   });
   const cnt=G("dz-count");
@@ -1221,7 +1229,7 @@ function setDzCat(cat){
   const clearBtn=G("dz-clear-btn");
   if(cat){
     badge.style.display="inline-flex";badge.textContent=cat;
-    badge.style.background=(DZC[cat]||"#888")+"22";badge.style.color=DZC[cat]||"#888";
+    badge.style.background=dzColor(cat)+"22";badge.style.color=dzColor(cat);
     clearBtn.style.display="flex";
   } else {
     badge.style.display="none";clearBtn.style.display="none";
@@ -1240,7 +1248,7 @@ function renderDzTable(rows){
   el.innerHTML=`<table>
     <thead><tr>
       <th>Order #</th><th>Date</th><th>Month</th><th>Category</th>
-      <th>Customer</th><th>Email</th>
+      <th>Customer</th><th>Email</th><th>Why classified</th>
       <th>Product</th><th>Vendor</th>
       <th class="r">Units</th><th class="r dc">Gross Sale</th>
       <th class="r dc">Discount</th><th class="r dc">Disc %</th><th>Discount Source</th><th class="r">Net Paid</th>
@@ -1250,7 +1258,7 @@ function renderDzTable(rows){
     </tr></thead>
     <tbody>
     ${rows.slice(0,800).map(r=>{
-      const clr=DZC[r.category]||"#888";
+      const clr=dzColor(r.category);
       const gross=parseFloat(r.gross_sales||r.original_price||0)||0;
       const disc=parseFloat(r.discount||0)||0;
       const net=parseFloat(r.net_paid||0)||0;
@@ -1262,6 +1270,7 @@ function renderDzTable(rows){
         <td><span style="font-size:10px;font-weight:700;color:${clr}">${r.category||"—"}</span></td>
         <td class="nm" style="max-width:130px">${r.customer_name||"—"}</td>
         <td style="font-size:10px;color:var(--tx3);max-width:150px;overflow:hidden;text-overflow:ellipsis">${r.customer_email||"—"}</td>
+        <td class="full-text-cell" style="font-size:10px;color:#93C5FD;max-width:230px;white-space:normal;line-height:1.35" title="${r.classification_evidence||r.classification_reason||''}">${r.classification_reason||"No classification evidence"}</td>
         <td class="nm" style="max-width:160px">${r.product_title||"—"}<small>${r.product_type||""}</small></td>
         <td style="font-size:10px;color:var(--tx3)">${r.vendor||"—"}</td>
         <td class="r">${fN(r.units)}</td>
@@ -1313,7 +1322,7 @@ function rDiscZero(summary,detail){
   const sortedCats=Object.entries(catMap).sort((a,b)=>b[1].disc-a[1].disc);
 
   sortedCats.forEach(([cat,data])=>{
-    const clr=DZC[cat]||"#888";
+    const clr=dzColor(cat);
     const card=document.createElement("div");
     card.className="zc";card.dataset.cat=cat;
     card.style.setProperty("--zclr",clr);
@@ -1378,7 +1387,7 @@ function rStaff(rows){
   const expected= _stAllRows.reduce((a,r)=>a+(parseFloat(r.expected_item_payment)||0),0);
   const paid    = _stAllRows.reduce((a,r)=>a+(parseFloat(r.net_paid)||0),0);
   const gap     = paid - expected;
-  // Staff tab must group by GraphQL createdBy, NOT customer.
+  // Staff tab groups by Shopify staff attribution, NOT customer.
   const personKeyOf = r => r.staff_member || r.staff_person_name || r.order_staff_name || "Unknown";
   const personNameOf = r => r.staff_member || r.staff_person_name || r.order_staff_name || "Unknown";
   const personEmailOf = r => r.staff_person_email || r.created_by_email || r.order_staff_email || "";
@@ -1394,7 +1403,7 @@ function rStaff(rows){
   G("st-tot-gap").textContent    = f$(gap);
   if(G("st-tot-gap")) G("st-tot-gap").style.color = gap < 0 ? "#F87171" : "var(--green3)";
 
-  // Build sidebar: one card per staff member from GraphQL Order.createdBy.
+  // Build sidebar: one card per resolved Shopify staff member; API-unattributed orders remain explicit.
   const personMap = {};
   _stAllRows.forEach(r=>{
     const key = personKeyOf(r);
@@ -1425,7 +1434,7 @@ function rStaff(rows){
     const gapClr = p.gap<0?"#F87171":"var(--green3)";
     card.innerHTML=`
       <div style="font-size:10px;font-weight:700;color:var(--tx);margin-bottom:2px">${p.name}</div>
-      <div style="font-size:9px;color:var(--tx3);margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||"GraphQL createdBy"}</div>
+      <div style="font-size:9px;color:var(--tx3);margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||"Shopify staff attribution"}</div>
       <div class="zc-units">${p.lines} <span style="font-size:10px;color:var(--tx3);font-family:'DM Sans',sans-serif;font-weight:400">lines</span></div>
       <div class="zc-row"><span>Orders</span><span>${p.orders.size}</span></div>
       <div class="zc-row"><span>Net paid</span><span style="color:var(--green3)">${f$(p.paid)}</span></div>
@@ -1467,8 +1476,8 @@ function renderStaffTable(){
       <th class="r dc">Gross Sale</th><th class="r dc">Discount</th><th class="r dc">Disc %</th>
       <th>Discount Source</th>
       <th class="r">Net Paid</th>
-      <th class="r">COGS</th><th class="r" style="color:var(--gold2)">Expected</th>
-      <th class="r">Gap</th>
+      <th class="r">COGS</th><th class="r" style="color:var(--gold2)">Required (COGS + 10%)</th>
+      <th class="r">Gap</th><th>Status</th>
       <th class="r" style="color:var(--gold2)">Shipping</th>
       <th>Tags</th>
     </tr></thead>
@@ -1500,8 +1509,9 @@ function renderStaffTable(){
         <td class="full-text-cell discount-source-cell" style="font-size:10px;color:var(--gold2);max-width:360px;overflow:visible;text-overflow:clip;white-space:normal;line-height:1.35;word-break:break-word" title="${r.discount_code_source||r.order_discount_codes||''}">${r.discount_code_source||r.order_discount_codes||"—"}</td>
         <td class="r">${f$(r.net_paid)}</td>
         <td class="r" style="color:var(--gold2)">${f$(r.cogs)}</td>
-        <td class="r" style="color:var(--gold2)">${f$(r.expected_item_payment)}</td>
+        <td class="r" style="color:var(--gold2)">${f$(r.required_cogs_plus_10 ?? r.expected_item_payment)}</td>
         <td class="r" style="color:${gap<0?"#F87171":"var(--green3)"};font-weight:${gap<0?700:400}">${f$(gap)}</td>
+        <td style="font-size:9px;font-weight:700;color:${gap<-.01?"#F87171":"var(--green3)"}">${r.compliance_status||(gap<-.01?"UNDER COGS + 10%":"PAID >= COGS + 10%")}</td>
         <td class="r" style="color:var(--gold2)">${f$(r.shipping_paid)}</td>
         <td style="font-size:9px;color:var(--tx3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.tags||""}">${(r.tags||"—").slice(0,40)}</td>
       </tr>`;

@@ -42,7 +42,7 @@ SHEET_ID    = os.environ.get("SHEET_ID_QUARTER", "")
 SCOPES      = ["https://www.googleapis.com/auth/spreadsheets",
                "https://www.googleapis.com/auth/drive"]
 
-SCRIPT_BUILD = "v3.3-discount-zero-exclude-replacement-refund-2026-06-16"
+SCRIPT_BUILD = "v3.4-deeper-discount-staff-attribution-cogs10-2026-08-09"
 
 QUARTER_MONTHS = {
     "q1":[1,2,3], "q2":[4,5,6], "q3":[7,8,9], "q4":[10,11,12]
@@ -78,11 +78,82 @@ DEFAULT_STAFF_ORDER_OVERRIDES = {
     "#152362": {"name": "Jordyn Way", "email": "jway@corroshop.com", "note": "employee POS order"},
 }
 def classify_disc_zero(tags_str):
+    """Backward-compatible tag-only classifier used outside the detailed audit."""
     t = (tags_str or "").lower()
     for cat, kws in DISC_ZERO_CATS:
         if any(k in t for k in kws):
             return cat
-    return "Other"
+    return "Other — Unclassified"
+
+
+def _line_properties_text(line_item):
+    values = []
+    for prop in (line_item.get("properties") or []):
+        if isinstance(prop, dict):
+            values.extend([prop.get("name"), prop.get("value")])
+        else:
+            values.append(prop)
+    return _clean_join(values, sep=" | ")
+
+
+def classify_disc_zero_deeper(order, line_item, discount_code_source="", order_discount_codes=""):
+    """Classify a free/100%-discount line using every audit signal we receive.
+
+    Ceci asked for deeper visibility than a tag-only bucket.  The classifier is
+    deliberately evidence-based: it checks tags, discount application/code,
+    product/SKU, line properties, order note/note attributes and source.  It
+    never guesses Sponsorship/Upsell when no supporting signal exists.
+    """
+    note_attrs = []
+    for a in (order.get("note_attributes") or []):
+        if isinstance(a, dict):
+            note_attrs.extend([a.get("name"), a.get("value")])
+
+    fields = [
+        ("tags", order.get("tags")),
+        ("discount", discount_code_source),
+        ("order discount", order_discount_codes),
+        ("product", line_item.get("title") or line_item.get("name")),
+        ("sku", line_item.get("sku")),
+        ("line property", _line_properties_text(line_item)),
+        ("order note", order.get("note")),
+        ("note attribute", _clean_join(note_attrs, sep=" | ")),
+        ("source", order.get("source_name")),
+    ]
+
+    rules = [
+        ("Team Rider", ["team rider", "team_rider"]),
+        ("Sponsorship", ["sponsorship", "sponsor", "sponsored"]),
+        ("Upsell / Post-purchase", ["upsell", "up sell", "post purchase", "post-purchase", "reconvert", "aftersell", "zipify", "one click upsell", "ocu"]),
+        ("Gift with Purchase", ["gift with purchase", "gwp", "free gift", "gift-with-purchase"]),
+        ("Influencer / Creator", ["influencer", "creator", "ambassador"]),
+        ("Giveaway / Contest", ["giveaway", "contest", "sweepstake", "raffle"]),
+        ("Sample / Product Seeding", ["sample", "seeding", "product seed", "tester"]),
+        ("Customer Service / Courtesy", ["courtesy", "goodwill", "customer service", "service recovery"]),
+        ("Marketing", ["marketing", "promo", "promotion"]),
+        ("Internal / Staff", ["employee order", "employee", "staff", "internal"]),
+        ("Elite Cart Gift", ["elite cart", "elite_cart", "elitecart"]),
+        ("Advent Calendar", ["advent calendar", "advent_calendar"]),
+    ]
+
+    for category, keywords in rules:
+        for field_name, raw in fields:
+            text = str(raw or "").lower()
+            for kw in keywords:
+                if kw in text:
+                    return category, f"{field_name}: {kw}", _clean_join([discount_code_source, order_discount_codes])
+
+    # If no semantic rule matched, expose the real Shopify discount/code rather
+    # than hiding 121 rows under a generic Other bucket.
+    label = _clean_join([order_discount_codes, discount_code_source])
+    if label:
+        # Bucket by the stable Shopify discount/application label, not by the
+        # allocated dollar amount (which would create one category per line).
+        bucket = (order_discount_codes or discount_code_source or "").split(" — $")[0].strip()
+        compact = bucket[:70] + ("…" if len(bucket) > 70 else "")
+        return f"Other — {compact}", "discount/code present; no configured business-category keyword", label
+
+    return "Other — Unclassified", "no sponsorship/upsell/staff/gift signal found in available Shopify fields", ""
 
 
 def money(v):
@@ -366,7 +437,7 @@ def fetch_orders(start, end):
             "created_at_max":f"{end}T23:59:59-05:00",
             "limit":250,
             "fields":"id,name,created_at,financial_status,subtotal_price,total_price,"
-                     "total_discounts,discount_codes,discount_applications,source_name,tags,line_items,customer,"
+                     "total_discounts,discount_codes,discount_applications,source_name,tags,note,note_attributes,user_id,location_id,line_items,customer,"
                      "shipping_lines,total_shipping_price_set,payment_gateway_names",
         })
         for o in batch:
@@ -739,6 +810,76 @@ def find_order_meta(order, meta_map):
             return meta_map[key]
     return {}
 
+def fetch_order_staff_members_for_rest_orders(orders):
+    """Resolve the responsible Shopify staff member for the exact REST orders.
+
+    Current Shopify Admin GraphQL exposes Order.staffMember (not Order.createdBy).
+    It returns the staff member who created/is responsible for manual/POS orders
+    and can be null for customer-created online-store orders.  If the app lacks
+    read_users, this function fails closed and the existing ShopifyQL/manual
+    fallbacks continue to work.
+    """
+    print("  Fetching staff attribution via GraphQL Order.staffMember...")
+    out = {}
+    order_list = [o for o in (orders or []) if o.get("id")]
+    if not order_list:
+        return out
+
+    QUERY = """
+    query($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Order {
+          id
+          name
+          sourceName
+          staffMember { id name email }
+        }
+      }
+    }"""
+
+    scanned = found = 0
+    for batch in chunks(order_list, 75):
+        ids = [f"gid://shopify/Order/{o.get('id')}" for o in batch]
+        try:
+            d = shopify_graphql(QUERY, {"ids": ids})
+        except Exception as e:
+            print(f"  ⚠ Order.staffMember lookup unavailable: {e}")
+            return out
+        if d.get("errors"):
+            print("  ⚠ Order.staffMember unavailable (likely read_users/store-plan permission); keeping ShopifyQL/manual fallbacks")
+            print(f"    errors: {d.get('errors')}")
+            return out
+
+        for rest_order, node in zip(batch, (d.get("data") or {}).get("nodes") or []):
+            scanned += 1
+            node = node or {}
+            sm = node.get("staffMember") or {}
+            name = (sm.get("name") or "").strip()
+            email = (sm.get("email") or "").strip()
+            sid = str(sm.get("id") or "").split("/")[-1]
+            if name:
+                found += 1
+            meta = {
+                "order_staff_member_id": sid,
+                "order_staff_name": name,
+                "order_staff_email": email,
+                "created_by_name": "",
+                "created_by_email": "",
+                "staff_member": name,
+                "staff_person_name": name,
+                "staff_person_email": email,
+                "staff_source": "GraphQL Order.staffMember" if name else "GraphQL Order.staffMember = null",
+            }
+            for raw in (rest_order.get("id", ""), rest_order.get("name", ""), node.get("id", ""), node.get("name", "")):
+                for key in order_lookup_keys(raw):
+                    out[key] = meta
+        time.sleep(0.2)
+
+    unique = sorted({v.get("order_staff_name") for v in out.values() if v.get("order_staff_name")})
+    print(f"  → Order.staffMember: {scanned} orders checked | {found} attributed | staff: {', '.join(unique[:12]) or 'none'}")
+    return out
+
+
 def load_staff_order_overrides():
     """Manual staff creator map for orders Shopify confirms but the API token
     cannot expose through GraphQL Order.createdBy. The defaults fix the two Q1
@@ -1065,9 +1206,9 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
         shopifyql_total_price = ql_staff_meta.get("shopifyql_total_price", "")
         shopifyql_discount_amount = ql_staff_meta.get("shopifyql_discount_amount", "")
 
-        staff_person_name = order_staff_name or shopifyql_staff_member or "Unknown"
+        staff_person_name = order_staff_name or shopifyql_staff_member or "Unattributed — Shopify staff unavailable"
         staff_person_email = order_staff_email or shopifyql_staff_email or ""
-        resolved_staff_source = staff_source or shopifyql_source or ("manual/ShopifyQL missing staff" if staff_person_name == "Unknown" else "")
+        resolved_staff_source = staff_source or shopifyql_source or ("Shopify returned no staff attribution; check read_users or order source" if staff_person_name.startswith("Unattributed") else "")
 
         # Staff audit rows are still limited to internal/employee tagged orders.
         # The responsible staff person comes from Order.createdBy.
@@ -1136,6 +1277,9 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
             )
             discount_validation = "EXACT_100_LINE_DISCOUNT" if is_exact_100_discount else "NOT_100_LINE_DISCOUNT"
             discount_code_source = line_discount_origin(order, li)
+            deep_category, classification_reason, classification_evidence = classify_disc_zero_deeper(
+                order, li, discount_code_source, order_discount_codes
+            )
             discount_zero_exclusion = discount_zero_exclusion_reason(order, li, order_discount_codes)
 
             cost = info["unit_cost"] * qty
@@ -1167,7 +1311,9 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
                 "order_name": order.get("name", ""),
                 "created_at": order.get("created_at", "")[:10],
                 "month": MONTH_NAMES.get(om, ""),
-                "category": category,
+                "category": deep_category if is_exact_100_discount else category,
+                "classification_reason": classification_reason,
+                "classification_evidence": classification_evidence,
                 "tags": tags_str,
                 "customer_name": customer_name,
                 "customer_email": customer_email,
@@ -1201,7 +1347,7 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
                 "created_by_name": created_by_name or (order_staff_name if staff_source.startswith("manual override") else ""),
                 "created_by_email": created_by_email or (order_staff_email if staff_source.startswith("manual override") else ""),
                 "staff_source": resolved_staff_source,
-                "staff_member": staff_person_name if staff_person_name != "Unknown" else "",
+                "staff_member": staff_person_name,
                 "shopifyql_order_id": shopifyql_order_id,
                 "shopifyql_total_price": shopifyql_total_price,
                 "shopifyql_discount_amount": shopifyql_discount_amount,
@@ -1222,9 +1368,12 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
             if staff_flag:
                 expected_item_payment = round(cost * 1.10, 2)
                 row_staff = dict(base_audit_row)
+                payment_gap = round(net - expected_item_payment, 2)
                 row_staff.update({
                     "expected_item_payment": expected_item_payment,
-                    "payment_gap": round(net - expected_item_payment, 2),
+                    "required_cogs_plus_10": expected_item_payment,
+                    "payment_gap": payment_gap,
+                    "compliance_status": "PAID >= COGS + 10%" if payment_gap >= -0.01 else "UNDER COGS + 10%",
                     "is_dropship": "YES" if info["unit_cost"] > 0 else "NO",
                 })
                 staff_rows.append(row_staff)
@@ -1586,10 +1735,11 @@ def main():
 
     vmap, all_pids = fetch_product_map()
     orders         = fetch_orders(start, end)
-    # Do NOT call GraphQL Order.createdBy here: this store/API returns
-    # undefinedField for createdBy on Order. Use ShopifyQL staff_member plus
-    # confirmed manual overrides instead.
-    order_staff_map= load_staff_order_overrides()
+    # Staff attribution: first try the current supported GraphQL Order.staffMember
+    # field for the exact orders, then let confirmed manual overrides win.
+    # ShopifyQL remains a fallback for stores/tokens without read_users access.
+    order_staff_map = fetch_order_staff_members_for_rest_orders(orders)
+    order_staff_map.update(load_staff_order_overrides())
     staff_ql_map   = fetch_shopifyql_staff_orders(start, end)
     summary_total, summary_monthly = fetch_shopifyql_summary(start, end, months)
     sq_map         = fetch_shopifyql(start, end)
@@ -1768,7 +1918,10 @@ def main():
             cat_month[d["category"]][om]["discount"] += d["discount"]
             cat_month[d["category"]][om]["products"].add(d["product_title"])
 
-    all_cats = [c for c,_ in DISC_ZERO_CATS] + ["Other"]
+    # Keep every dynamically discovered category (including code-specific
+    # "Other — ..." buckets) so the summary does not collapse visibility.
+    preferred = [c for c,_ in DISC_ZERO_CATS]
+    all_cats = [c for c in preferred if c in cat_month] + sorted(c for c in cat_month if c not in preferred)
     h_dz = ["updated_at","period","status","category"]
     for m in months:
         h_dz += [f"{MONTH_NAMES[m]} units", f"{MONTH_NAMES[m]} discount", f"{MONTH_NAMES[m]} cogs"]
@@ -1800,12 +1953,12 @@ def main():
 
     # Order-by-order detail for 100% discounts
     h_dz_det = ["updated_at","period","status","order_name","created_at","month","category",
-                "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
+                "customer_name","customer_email","tags","classification_reason","classification_evidence","product_title","sku","vendor","product_type",
                 "units","gross_sales","discount","discount_pct","exact_discount_pct","discount_source","discount_code_source","order_discount_codes","payment_gateways","discount_validation","net_paid","unit_cost","cogs",
                 "gross_profit","shipping_paid"]
     write_tab(sh, f"q_discount_zero_detail_{sfx}", h_dz_det,
               [[now,label,period_status]+[d.get(k,"") for k in ["order_name","created_at","month","category",
-               "customer_name","customer_email","tags","product_title","sku","vendor","product_type",
+               "customer_name","customer_email","tags","classification_reason","classification_evidence","product_title","sku","vendor","product_type",
                "units","gross_sales","discount","discount_pct","exact_discount_pct","discount_source","discount_code_source","order_discount_codes","payment_gateways","discount_validation","net_paid","unit_cost","cogs",
                "gross_profit","shipping_paid"]]
                for d in sorted(disc_zero_rows, key=lambda x: x["created_at"])])
@@ -1818,7 +1971,7 @@ def main():
                "shopifyql_order_id","shopifyql_total_price","shopifyql_discount_amount",
                "category","tags","product_title","sku","vendor","product_type","is_dropship",
                "units","gross_sales","discount","discount_pct","discount_code_source","order_discount_codes","payment_gateways","net_paid","unit_cost","cogs",
-               "expected_item_payment","payment_gap","gross_profit","shipping_paid"]
+               "expected_item_payment","required_cogs_plus_10","payment_gap","compliance_status","gross_profit","shipping_paid"]
     write_tab(sh, f"q_staff_orders_{sfx}", h_staff,
               [[now,label,period_status]+[d.get(k,"") for k in ["order_name","created_at","month",
                "staff_member","staff_person_name","staff_person_email",
@@ -1827,7 +1980,7 @@ def main():
                "shopifyql_order_id","shopifyql_total_price","shopifyql_discount_amount",
                "category","tags","product_title","sku","vendor","product_type","is_dropship",
                "units","gross_sales","discount","discount_pct","discount_code_source","order_discount_codes","payment_gateways","net_paid","unit_cost","cogs",
-               "expected_item_payment","payment_gap","gross_profit","shipping_paid"]]
+               "expected_item_payment","required_cogs_plus_10","payment_gap","compliance_status","gross_profit","shipping_paid"]]
                for d in sorted(staff_rows, key=lambda x: x["created_at"])])
 
     # ── 9. MONTHLY BREAKDOWN ──────────────────────────────────────
