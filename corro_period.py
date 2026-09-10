@@ -1164,7 +1164,7 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
     - Discount Zero only captures line items paid at $0 / 100% discounted.
     - Staff captures every line from staff/internal/employee tagged orders, even when
       the staff member paid something. This is required to audit whether they paid
-      at least COGS + 10% and whether shipping was paid.
+      at least COGS and whether shipping was paid.
     """
     order_staff_map = order_staff_map or {}
     shopifyql_staff_order_map = shopifyql_staff_order_map or {}
@@ -1366,14 +1366,14 @@ def aggregate(orders, vmap, months, order_staff_map=None, shopifyql_staff_order_
             # Staff audit must NOT depend on Discount Zero. Staff members may have
             # paid something, so we need every staff/internal/employee tagged line.
             if staff_flag:
-                expected_item_payment = round(cost * 1.10, 2)
+                expected_item_payment = round(cost, 2)
                 row_staff = dict(base_audit_row)
                 payment_gap = round(net - expected_item_payment, 2)
                 row_staff.update({
                     "expected_item_payment": expected_item_payment,
                     "required_cogs_plus_10": expected_item_payment,
                     "payment_gap": payment_gap,
-                    "compliance_status": "PAID >= COGS + 10%" if payment_gap >= -0.01 else "UNDER COGS + 10%",
+                    "compliance_status": "PAID >= COGS" if payment_gap >= -0.01 else "UNDER COGS",
                     "is_dropship": "YES" if info["unit_cost"] > 0 else "NO",
                 })
                 staff_rows.append(row_staff)

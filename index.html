@@ -600,7 +600,7 @@ table.force-card .bm{justify-content:flex-end!important}
       <div class="dz-kpi-sub">internal / employee tagged items</div>
     </div>
     <div class="dz-kpi">
-      <div class="dz-kpi-lbl">Required (COGS + 10%)</div>
+      <div class="dz-kpi-lbl">Required (COGS)</div>
       <div class="dz-kpi-val" id="st-tot-expected" style="color:var(--gold2)">—</div>
       <div class="dz-kpi-sub">minimum staff payment based on item COGS</div>
     </div>
@@ -612,7 +612,7 @@ table.force-card .bm{justify-content:flex-end!important}
     <div class="dz-kpi">
       <div class="dz-kpi-lbl">Payment gap</div>
       <div class="dz-kpi-val" id="st-tot-gap" style="color:#F87171">—</div>
-      <div class="dz-kpi-sub">actual paid minus required COGS + 10%</div>
+      <div class="dz-kpi-sub">actual paid minus required COGS</div>
     </div>
   </div>
 
@@ -1476,7 +1476,7 @@ function renderStaffTable(){
       <th class="r dc">Gross Sale</th><th class="r dc">Discount</th><th class="r dc">Disc %</th>
       <th>Discount Source</th>
       <th class="r">Net Paid</th>
-      <th class="r">COGS</th><th class="r" style="color:var(--gold2)">Required (COGS + 10%)</th>
+      <th class="r">COGS</th><th class="r" style="color:var(--gold2)">Required (COGS)</th>
       <th class="r">Gap</th><th>Status</th>
       <th class="r" style="color:var(--gold2)">Shipping</th>
       <th>Tags</th>
@@ -1511,7 +1511,7 @@ function renderStaffTable(){
         <td class="r" style="color:var(--gold2)">${f$(r.cogs)}</td>
         <td class="r" style="color:var(--gold2)">${f$(r.required_cogs_plus_10 ?? r.expected_item_payment)}</td>
         <td class="r" style="color:${gap<0?"#F87171":"var(--green3)"};font-weight:${gap<0?700:400}">${f$(gap)}</td>
-        <td style="font-size:9px;font-weight:700;color:${gap<-.01?"#F87171":"var(--green3)"}">${r.compliance_status||(gap<-.01?"UNDER COGS + 10%":"PAID >= COGS + 10%")}</td>
+        <td style="font-size:9px;font-weight:700;color:${gap<-.01?"#F87171":"var(--green3)"}">${r.compliance_status||(gap<-.01?"UNDER COGS":"PAID >= COGS")}</td>
         <td class="r" style="color:var(--gold2)">${f$(r.shipping_paid)}</td>
         <td style="font-size:9px;color:var(--tx3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.tags||""}">${(r.tags||"—").slice(0,40)}</td>
       </tr>`;
